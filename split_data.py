@@ -1,17 +1,30 @@
 import pandas as pd
 
 # --- 1. Configuration ---
-INPUT_FILE = "czech_liga_pro_advanced_stats_FIXED.csv"
+INPUT_FILE = "final_dataset_v7.4_no_duplicates.csv"
 TRAINING_FILE = "training_dataset.csv"
 TESTING_FILE = "testing_dataset.csv"
-# We will use a 70/30 split for training and testing.
-TRAIN_SPLIT_PERCENTAGE = 0.7
+# We will use a 75/25 split for training and testing.
+TRAIN_SPLIT_PERCENTAGE = 0.70
 
 # --- 2. Main Script Logic ---
 try:
     # Load the entire dataset from your CSV file.
     print(f"Loading data from '{INPUT_FILE}'...")
-    df = pd.read_csv(INPUT_FILE)
+#    df = pd.read_csv(INPUT_FILE)
+#    df = pd.read_csv(INPUT_FILE, parse_dates=['Date'], date_format='mixed')
+#    df = pd.read_csv(INPUT_FILE, parse_dates=['Date'], date_format='mixed', low_memory=False)
+    # Define the data types for the problematic columns
+    column_types = {
+        'Kickoff_P1_Odds': str,
+        'Kickoff_P2_Odds': str
+    }
+    df = pd.read_csv(
+        INPUT_FILE,
+        na_values=['-'], 
+        keep_default_na=True, # Also respects empty strings/default missing values as NaN
+        low_memory=False # Prevents Pandas from guessing types chunk-by-chunk
+    )
     print(f"Successfully loaded {len(df)} total matches.")
 
     # Convert the 'Date' column to a proper datetime format to ensure correct sorting.

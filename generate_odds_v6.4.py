@@ -3,7 +3,7 @@ import joblib
 
 # --- 1. Configuration ---
 TESTING_FILE = "testing_dataset.csv"
-MODEL_FILE = "odds_model.joblib"
+MODEL_FILE = "odds_model_v6.4.joblib"
 SCALER_FILE = "scaler.joblib"
 # This is the final output file you will use for your back-test.
 OUTPUT_FILE = "backtest_data_with_odds.csv"

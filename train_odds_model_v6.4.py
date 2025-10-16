@@ -6,7 +6,7 @@ import joblib # For saving the trained model
 
 # --- 1. Configuration ---
 TRAINING_FILE = "training_dataset.csv"
-MODEL_FILE = "odds_model.joblib" # The output file for our trained model
+MODEL_FILE = "odds_model_v6.4.joblib" # The output file for our trained model
 
 # --- 2. Main Script Logic ---
 try:
