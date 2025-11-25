@@ -7,7 +7,7 @@ import os # NEW: Imported the 'os' module to check for the file's existence
 import pytz 
 
 # --- 1. Configuration ---
-API_TOKEN = "232034-RBGwKswgRWx3yZ" 
+API_TOKEN = "" 
 SPORT_ID = "92"
 LEAGUE_ID = "22742"
 # Set to 350 for the full run, or a smaller number for testing.
