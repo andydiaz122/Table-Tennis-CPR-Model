@@ -5,34 +5,35 @@ import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import sys # --- NEW: For exiting gracefully
+from collections import defaultdict
+import bisect
 
+# ==============================================================================
+# OPTIMIZED HELPER FUNCTIONS (Vectorized - No iterrows)
+# ==============================================================================
 
-# - Close set win rate calculation
-def calculate_close_set_win_rate(player_id, rolling_games_df):
-    """
-    Calculates a player's win percentage in "close" sets (decided by 2 points).
-    """
+def calculate_close_set_win_rate_vectorized(player_id, rolling_games_df):
+    """Vectorized close set win rate calculation - eliminates iterrows loop."""
     if rolling_games_df.empty:
         return 0.5
+
+    set_scores = rolling_games_df['Set Scores'].values
+    p1_ids = rolling_games_df['Player 1 ID'].values
 
     total_close_sets_played = 0
     total_close_sets_won = 0
 
-    for _, game in rolling_games_df.iterrows():
-        set_scores_str = game.get('Set Scores')
+    for i in range(len(set_scores)):
+        set_scores_str = set_scores[i]
         if pd.isna(set_scores_str):
             continue
-
+        is_p1 = (p1_ids[i] == player_id)
         for set_score in str(set_scores_str).split(','):
             try:
                 p1_points, p2_points = map(int, set_score.split('-'))
-                
                 if abs(p1_points - p2_points) == 2:
                     total_close_sets_played += 1
-                    
-                    is_p1 = (game['Player 1 ID'] == player_id)
                     p1_won_set = p1_points > p2_points
-                    
                     if (is_p1 and p1_won_set) or (not is_p1 and not p1_won_set):
                         total_close_sets_won += 1
             except (ValueError, IndexError):
@@ -40,76 +41,91 @@ def calculate_close_set_win_rate(player_id, rolling_games_df):
 
     if total_close_sets_played == 0:
         return 0.5
-
     return total_close_sets_won / total_close_sets_played
 
-# - Head-to-Head Dominance Score calculation
-def calculate_h2h_dominance(p1_id, h2h_df, current_match_date, decay_factor):
-    """
-    Calculates a recency-weighted H2H dominance score based on point differentials.
-    """
-    if h2h_df.empty:
+
+def calculate_h2h_dominance_vectorized(p1_id, h2h_indices, current_match_date, decay_factor,
+                                        df_dates, df_p1_ids, df_p1_points, df_p2_points):
+    """Vectorized H2H dominance using pre-indexed arrays."""
+    if len(h2h_indices) == 0:
         return 0.0
 
-    total_weighted_score = 0
-    
-    for _, game in h2h_df.iterrows():
-        # Calculate recency weight
-        days_ago = (current_match_date - game['Date']).days
-        weight = decay_factor ** days_ago
-        
-        # Symmetrically calculate point differential from p1's perspective
-        if game['Player 1 ID'] == p1_id:
-            point_diff = game['P1 Total Points'] - game['P2 Total Points']
-        else: # p1 was Player 2 in this historical match
-            point_diff = game['P2 Total Points'] - game['P1 Total Points']
-            
-        total_weighted_score += (point_diff * weight)
-        
-    return total_weighted_score
+    # Extract arrays for h2h matches only
+    h2h_dates = df_dates[h2h_indices]
+    h2h_p1_ids = df_p1_ids[h2h_indices]
+    h2h_p1_pts = df_p1_points[h2h_indices]
+    h2h_p2_pts = df_p2_points[h2h_indices]
+
+    # Vectorized calculation
+    days_ago = (current_match_date - h2h_dates).astype('timedelta64[D]').astype(float)
+    weights = decay_factor ** days_ago
+
+    # Point differential: positive if p1 advantage
+    is_p1_player1 = (h2h_p1_ids == p1_id)
+    point_diff = np.where(is_p1_player1, h2h_p1_pts - h2h_p2_pts, h2h_p2_pts - h2h_p1_pts)
+
+    return np.sum(point_diff * weights)
+
 
 def calculate_performance_slope(performance_history):
-    """Calculates the slope of recent performance using linear regression."""
+    """Unchanged - already efficient."""
     if len(performance_history) < 2:
-        return 0.0 # Cannot calculate a slope with fewer than 2 points
-
+        return 0.0
     y = np.array(performance_history)
     x = np.arange(len(y))
-    
-    # Use numpy's polyfit to find the slope of the best-fit line (degree 1)
-    slope = np.polyfit(x, y, 1)[0]
-    return slope
+    return np.polyfit(x, y, 1)[0]
 
-def calculate_pdr(player_id, rolling_games_df):
-    """Calculates the Points Dominance Ratio for a single player."""
+
+def calculate_pdr_vectorized(player_id, rolling_games_df):
+    """Vectorized PDR calculation - eliminates iterrows loop."""
     if rolling_games_df.empty:
-        return 0.5 # A neutral default value
-
-    total_points_won = 0
-    total_points_played = 0
-
-    for _, game in rolling_games_df.iterrows():
-        if 'P1 Total Points' not in game or 'P2 Total Points' not in game:
-            continue # Skip if point data is missing
-            
-        if game['Player 1 ID'] == player_id:
-            points_won = game['P1 Total Points']
-            points_lost = game['P2 Total Points']
-        else: # Player was P2
-            points_won = game['P2 Total Points']
-            points_lost = game['P1 Total Points']
-        
-        total_points_won += points_won
-        total_points_played += (points_won + points_lost)
-    
-    if total_points_played == 0:
         return 0.5
 
+    p1_ids = rolling_games_df['Player 1 ID'].values
+    p1_points = rolling_games_df['P1 Total Points'].values
+    p2_points = rolling_games_df['P2 Total Points'].values
+
+    is_p1 = (p1_ids == player_id)
+    points_won = np.where(is_p1, p1_points, p2_points)
+    points_lost = np.where(is_p1, p2_points, p1_points)
+
+    total_points_won = np.nansum(points_won)
+    total_points_played = np.nansum(points_won) + np.nansum(points_lost)
+
+    if total_points_played == 0:
+        return 0.5
     return total_points_won / total_points_played
 
 
+def calculate_win_rate_vectorized(player_id, games_df):
+    """Vectorized win rate calculation - replaces apply(lambda, axis=1)."""
+    if games_df.empty:
+        return 0.5
+
+    p1_ids = games_df['Player 1 ID'].values
+    p1_wins = games_df['P1_Win'].values
+
+    is_p1 = (p1_ids == player_id)
+    wins = np.where(is_p1, p1_wins == 1, p1_wins == 0).astype(int)
+    return wins.mean()
+
+
+def calculate_set_comebacks_vectorized(player_id, games_df):
+    """Vectorized set comebacks calculation - replaces apply(lambda, axis=1)."""
+    if games_df.empty:
+        return 0.0
+
+    p1_ids = games_df['Player 1 ID'].values
+    p1_comebacks = games_df['P1 Set Comebacks'].values
+    p2_comebacks = games_df['P2 Set Comebacks'].values
+
+    is_p1 = (p1_ids == player_id)
+    comebacks = np.where(is_p1, p1_comebacks, p2_comebacks)
+    return np.nansum(comebacks)
+
+
 # --- 1. Configuration ---
-FINAL_DATASET_FILE = "final_dataset_v7.4_no_duplicates.csv"
+FINAL_DATASET_FILE = "final_dataset_v7.4_no_duplicates.csv.gz"  # OPTIMIZATION: gzip
 GBM_MODEL_FILE = "cpr_v7.4_gbm_specialist.joblib"
 GBM_PREPROCESSOR_FILE = "gbm_preprocessor_v7.4.joblib"
 # LSTM_MODEL_FILE = "cpr_v7.1_lstm_specialist.h5"
@@ -168,13 +184,44 @@ try:
 #     lstm_scaler = joblib.load(LSTM_SCALER_FILE)
 #     meta_model = joblib.load(META_MODEL_FILE)
 
+    # ===========================================================================
+    # OPTIMIZATION: Pre-build indices for O(log N) lookups instead of O(N) filtering
+    # ===========================================================================
+    print("Building player and H2H indices for fast lookup...")
+
+    # Pre-extract numpy arrays for vectorized operations (avoids DataFrame overhead)
+    df_p1_ids = df['Player 1 ID'].values
+    df_p2_ids = df['Player 2 ID'].values
+    df_dates = df['Date'].values  # numpy datetime64
+    df_dates_as_date = pd.to_datetime(df['Date']).dt.date.values
+    df_p1_wins = df['P1_Win'].values
+    df_p1_points = df['P1 Total Points'].values
+    df_p2_points = df['P2 Total Points'].values
+    df_p1_comebacks = df['P1 Set Comebacks'].values
+    df_p2_comebacks = df['P2 Set Comebacks'].values
+    df_set_scores = df['Set Scores'].values
+
+    # Build player match index: player_id -> sorted list of match indices
+    player_match_indices = defaultdict(list)
+    for idx in range(len(df)):
+        player_match_indices[df_p1_ids[idx]].append(idx)
+        player_match_indices[df_p2_ids[idx]].append(idx)
+
+    # Build H2H pair index: (min_id, max_id) -> sorted list of match indices
+    h2h_pair_indices = defaultdict(list)
+    for idx in range(len(df)):
+        h2h_key = (min(df_p1_ids[idx], df_p2_ids[idx]), max(df_p1_ids[idx], df_p2_ids[idx]))
+        h2h_pair_indices[h2h_key].append(idx)
+
+    print(f"Indices built: {len(player_match_indices)} players, {len(h2h_pair_indices)} H2H pairs")
+
     # --- 3. Main Back-testing and Logging Loop ---
     print(f"\n--- Generating New Symmetrical Log with Wide Filters ---")
-    
+
     bankroll = INITIAL_BANKROLL
     bet_count = 0
     total_staked = 0
-    bet_log = [] 
+    bet_log = []
 
     bankroll_history_per_bet = [(backtest_df['Date'].iloc[0], INITIAL_BANKROLL)]
 
@@ -183,114 +230,170 @@ try:
 
     player_pdr_history = {}     # Dictionary to track PDR history for the slope
 
-    for index, match in tqdm(backtest_df.iterrows(), total=backtest_df.shape[0]):
-        
+    # Get backtest indices for efficient iteration
+    backtest_indices = backtest_df.index.tolist()
+
+    for index in tqdm(backtest_indices, total=len(backtest_indices)):
+        match = df.iloc[index]
+
         current_date = match['Date'].date()
         if last_processed_date != current_date:
             daily_betting_bankroll = bankroll
             last_processed_date = current_date
 
-        history_df = df.iloc[:index]
         p1_id, p2_id = match['Player 1 ID'], match['Player 2 ID']
         p1_market_odds, p2_market_odds = match['Kickoff_P1_Odds'], match['Kickoff_P2_Odds']
-        
-        # --- On-the-fly Feature Engineering for GBM model ---
-        # Get full history first, then the rolling window
-        p1_games = history_df[(history_df['Player 1 ID'] == p1_id) | (history_df['Player 2 ID'] == p1_id)]
-        p2_games = history_df[(history_df['Player 1 ID'] == p2_id) | (history_df['Player 2 ID'] == p2_id)]
-        p1_games_gbm = history_df[(history_df['Player 1 ID'] == p1_id) | (history_df['Player 2 ID'] == p1_id)].tail(ROLLING_WINDOW)
-        p2_games_gbm = history_df[(history_df['Player 1 ID'] == p2_id) | (history_df['Player 2 ID'] == p2_id)].tail(ROLLING_WINDOW)
-        
-        if len(p1_games_gbm) < MIN_GAMES_THRESHOLD or len(p2_games_gbm) < MIN_GAMES_THRESHOLD:
+
+        # ===========================================================================
+        # OPTIMIZATION: Use bisect for O(log N) index filtering instead of O(N)
+        # ===========================================================================
+
+        # Get player history indices using bisect (O(log N) instead of O(N) filter)
+        p1_all_indices = player_match_indices[p1_id]
+        p1_cutoff = bisect.bisect_left(p1_all_indices, index)
+        p1_history_indices = p1_all_indices[:p1_cutoff]
+
+        p2_all_indices = player_match_indices[p2_id]
+        p2_cutoff = bisect.bisect_left(p2_all_indices, index)
+        p2_history_indices = p2_all_indices[:p2_cutoff]
+
+        # Get rolling window indices (last N matches)
+        p1_gbm_indices = p1_history_indices[-ROLLING_WINDOW:] if len(p1_history_indices) >= ROLLING_WINDOW else p1_history_indices
+        p2_gbm_indices = p2_history_indices[-ROLLING_WINDOW:] if len(p2_history_indices) >= ROLLING_WINDOW else p2_history_indices
+
+        if len(p1_gbm_indices) < MIN_GAMES_THRESHOLD or len(p2_gbm_indices) < MIN_GAMES_THRESHOLD:
             continue
 
+        # Create DataFrame slices only when needed (using .iloc with index list)
+        p1_games_gbm = df.iloc[p1_gbm_indices]
+        p2_games_gbm = df.iloc[p2_gbm_indices]
+
+        # ===========================================================================
+        # OPTIMIZATION: All feature calculations now vectorized (no iterrows/apply)
+        # ===========================================================================
+
         # --- On-the-fly Fatigue and Recency Calculations --- #
-        # 1. Time Since Last Match
-        p1_last_game_date = p1_games['Date'].max()
-        p1_time_since_last = (match['Date'] - p1_last_game_date).total_seconds() / 3600 if pd.notna(p1_last_game_date) else 72
-        p2_last_game_date = p2_games['Date'].max()
-        p2_time_since_last = (match['Date'] - p2_last_game_date).total_seconds() / 3600 if pd.notna(p2_last_game_date) else 72
+        # 1. Time Since Last Match (using pre-extracted numpy arrays)
+        if len(p1_history_indices) > 0:
+            p1_last_game_date = df_dates[p1_history_indices[-1]]
+            p1_time_since_last = (match['Date'] - pd.Timestamp(p1_last_game_date)).total_seconds() / 3600
+        else:
+            p1_time_since_last = 72
+
+        if len(p2_history_indices) > 0:
+            p2_last_game_date = df_dates[p2_history_indices[-1]]
+            p2_time_since_last = (match['Date'] - pd.Timestamp(p2_last_game_date)).total_seconds() / 3600
+        else:
+            p2_time_since_last = 72
         time_since_last_advantage = p1_time_since_last - p2_time_since_last
 
-        # 2. Matches in Last 24 Hours
-        p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
-        p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
+        # 2. Matches in Last 24 Hours (vectorized using numpy arrays)
+        cutoff_time = match['Date'] - pd.Timedelta(hours=24)
+        p1_matches_last_24h = np.sum(df_dates[p1_history_indices] > np.datetime64(cutoff_time)) if len(p1_history_indices) > 0 else 0
+        p2_matches_last_24h = np.sum(df_dates[p2_history_indices] > np.datetime64(cutoff_time)) if len(p2_history_indices) > 0 else 0
         matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
 
-        # 3. Is First Match of the Day
-        today_history_df = history_df[history_df['Date'].dt.date == match['Date'].date()]
-        p1_is_first_match = 1 if today_history_df[(today_history_df['Player 1 ID'] == p1_id) | (today_history_df['Player 2 ID'] == p1_id)].empty else 0
-        p2_is_first_match = 1 if today_history_df[(today_history_df['Player 1 ID'] == p2_id) | (today_history_df['Player 2 ID'] == p2_id)].empty else 0
+        # 3. Is First Match of the Day (vectorized using pre-extracted date array)
+        current_date_val = match['Date'].date()
+        p1_today_matches = np.sum(df_dates_as_date[p1_history_indices] == current_date_val) if len(p1_history_indices) > 0 else 0
+        p2_today_matches = np.sum(df_dates_as_date[p2_history_indices] == current_date_val) if len(p2_history_indices) > 0 else 0
+        p1_is_first_match = 1 if p1_today_matches == 0 else 0
+        p2_is_first_match = 1 if p2_today_matches == 0 else 0
         is_first_match_advantage = p1_is_first_match - p2_is_first_match
 
-        # --- On-the-fly "Hot Streak" Win Rate (L5) ---
-        p1_rolling_games_short = p1_games.tail(SHORT_ROLLING_WINDOW)
-        p1_win_rate_l5 = p1_rolling_games_short.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p1_rolling_games_short.empty else 0.5
-        p2_rolling_games_short = p2_games.tail(SHORT_ROLLING_WINDOW)
-        p2_win_rate_l5 = p2_rolling_games_short.apply(lambda r: 1 if (r['Player 1 ID'] == p2_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p2_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p2_rolling_games_short.empty else 0.5
+        # --- On-the-fly "Hot Streak" Win Rate (L5) - VECTORIZED ---
+        p1_short_indices = p1_history_indices[-SHORT_ROLLING_WINDOW:] if len(p1_history_indices) >= SHORT_ROLLING_WINDOW else p1_history_indices
+        p2_short_indices = p2_history_indices[-SHORT_ROLLING_WINDOW:] if len(p2_history_indices) >= SHORT_ROLLING_WINDOW else p2_history_indices
+
+        if len(p1_short_indices) > 0:
+            p1_short_p1ids = df_p1_ids[p1_short_indices]
+            p1_short_wins = df_p1_wins[p1_short_indices]
+            is_p1 = (p1_short_p1ids == p1_id)
+            wins = np.where(is_p1, p1_short_wins == 1, p1_short_wins == 0).astype(int)
+            p1_win_rate_l5 = wins.mean()
+        else:
+            p1_win_rate_l5 = 0.5
+
+        if len(p2_short_indices) > 0:
+            p2_short_p1ids = df_p1_ids[p2_short_indices]
+            p2_short_wins = df_p1_wins[p2_short_indices]
+            is_p1 = (p2_short_p1ids == p2_id)
+            wins = np.where(is_p1, p2_short_wins == 1, p2_short_wins == 0).astype(int)
+            p2_win_rate_l5 = wins.mean()
+        else:
+            p2_win_rate_l5 = 0.5
         win_rate_l5_advantage = p1_win_rate_l5 - p2_win_rate_l5
 
-        # --- On-the-fly PDR Slope Calculation ---    
-        # Calculate current PDR for both players
-        p1_pdr = calculate_pdr(p1_id, p1_games_gbm)
-        p2_pdr = calculate_pdr(p2_id, p2_games_gbm)
+        # --- On-the-fly PDR Slope Calculation - VECTORIZED ---
+        p1_pdr = calculate_pdr_vectorized(p1_id, p1_games_gbm)
+        p2_pdr = calculate_pdr_vectorized(p2_id, p2_games_gbm)
 
         # Update and manage history for Player 1
-        if p1_id not in player_pdr_history: player_pdr_history[p1_id] = []
+        if p1_id not in player_pdr_history:
+            player_pdr_history[p1_id] = []
         player_pdr_history[p1_id].append(p1_pdr)
         if len(player_pdr_history[p1_id]) > SLOPE_WINDOW:
             player_pdr_history[p1_id].pop(0)
         p1_pdr_slope = calculate_performance_slope(player_pdr_history[p1_id])
 
         # Update and manage history for Player 2
-        if p2_id not in player_pdr_history: player_pdr_history[p2_id] = []
+        if p2_id not in player_pdr_history:
+            player_pdr_history[p2_id] = []
         player_pdr_history[p2_id].append(p2_pdr)
         if len(player_pdr_history[p2_id]) > SLOPE_WINDOW:
             player_pdr_history[p2_id].pop(0)
         p2_pdr_slope = calculate_performance_slope(player_pdr_history[p2_id])
-        
+
         pdr_slope_advantage = p1_pdr_slope - p2_pdr_slope
 
-        # NEW: Retrieve the pre-calculated Elo_Advantage from the current match row.
-#        elo_advantage = match['Elo_Advantage']
+        # Retrieve pre-calculated values from match row
         pdr_advantage = match['PDR_Advantage']
         daily_fatigue_advantage = match['Daily_Fatigue_Advantage']
 
-        # 1. Calculate H2H on-the-fly using ONLY historical data to prevent leakage.
-        h2h_df = history_df[((history_df['Player 1 ID'] == p1_id) & (history_df['Player 2 ID'] == p2_id)) | 
-                              ((history_df['Player 1 ID'] == p2_id) & (history_df['Player 2 ID'] == p1_id))]
-        
-        if not h2h_df.empty:
-            p1_h2h_wins = len(h2h_df[((h2h_df['Player 1 ID'] == p1_id) & (h2h_df['P1_Win'] == 1)) | 
-                                     ((h2h_df['Player 2 ID'] == p1_id) & (h2h_df['P1_Win'] == 0))])
-            h2h_p1_win_rate = p1_h2h_wins / len(h2h_df)
+        # ===========================================================================
+        # OPTIMIZATION: H2H calculations using pre-built index (O(log N) vs O(N))
+        # Calculate ONCE, reuse for both feature calculation and logging
+        # ===========================================================================
+        h2h_key = (min(p1_id, p2_id), max(p1_id, p2_id))
+        h2h_all_indices = h2h_pair_indices[h2h_key]
+        h2h_cutoff = bisect.bisect_left(h2h_all_indices, index)
+        h2h_history_indices = h2h_all_indices[:h2h_cutoff]
+
+        if len(h2h_history_indices) > 0:
+            # Vectorized H2H win rate calculation
+            h2h_p1ids = df_p1_ids[h2h_history_indices]
+            h2h_wins = df_p1_wins[h2h_history_indices]
+            is_p1_player1 = (h2h_p1ids == p1_id)
+            p1_h2h_wins = np.sum(np.where(is_p1_player1, h2h_wins == 1, h2h_wins == 0))
+            h2h_p1_win_rate = p1_h2h_wins / len(h2h_history_indices)
         else:
-            h2h_p1_win_rate = 0.5 # Default value if they have no history
+            h2h_p1_win_rate = 0.5  # Default value if no H2H history
 
-        # --- On-the-fly H2H Dominance Calculation ---
-        h2h_dominance_score = calculate_h2h_dominance(p1_id, h2h_df, match['Date'], H2H_DECAY_FACTOR)
+        # --- On-the-fly H2H Dominance Calculation - VECTORIZED ---
+        h2h_dominance_score = calculate_h2h_dominance_vectorized(
+            p1_id, h2h_history_indices, match['Date'], H2H_DECAY_FACTOR,
+            df_dates, df_p1_ids, df_p1_points, df_p2_points
+        )
 
-        p1_win_rate = p1_games_gbm.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p1_games_gbm.empty else 0.5
-        p2_win_rate = p2_games_gbm.apply(lambda r: 1 if (r['Player 1 ID'] == p2_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p2_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p2_games_gbm.empty else 0.5
+        # --- Win Rate (L20) - VECTORIZED ---
+        p1_win_rate = calculate_win_rate_vectorized(p1_id, p1_games_gbm)
+        p2_win_rate = calculate_win_rate_vectorized(p2_id, p2_games_gbm)
         win_rate_advantage = p1_win_rate - p2_win_rate
-        
-#        p1_pressure_points = p1_games_gbm.apply(lambda r: r['P1_Pressure_Points'] if r['Player 1 ID'] == p1_id else r['P2_Pressure_Points'], axis=1).mean() if not p1_games_gbm.empty else 0.0
-#        p2_pressure_points = p2_games_gbm.apply(lambda r: r['P1_Pressure_Points'] if r['Player 1 ID'] == p2_id else r['P2_Pressure_Points'], axis=1).mean() if not p2_games_gbm.empty else 0.0
-#        pressure_points_advantage = p1_pressure_points - p2_pressure_points
 
-        # --- Replaced Pressure Points with Close Set Win Rate --- #
-        p1_close_set_win_rate = calculate_close_set_win_rate(p1_id, p1_games_gbm)
-        p2_close_set_win_rate = calculate_close_set_win_rate(p2_id, p2_games_gbm)
+        # --- Close Set Win Rate - VECTORIZED ---
+        p1_close_set_win_rate = calculate_close_set_win_rate_vectorized(p1_id, p1_games_gbm)
+        p2_close_set_win_rate = calculate_close_set_win_rate_vectorized(p2_id, p2_games_gbm)
         close_set_win_rate_advantage = p1_close_set_win_rate - p2_close_set_win_rate
 
-        p1_set_comebacks = p1_games_gbm.apply(lambda r: r['P1 Set Comebacks'] if r['Player 1 ID'] == p1_id else r['P2 Set Comebacks'], axis=1).sum() if not p1_games_gbm.empty else 0.0
-        p2_set_comebacks = p2_games_gbm.apply(lambda r: r['P1 Set Comebacks'] if r['Player 1 ID'] == p2_id else r['P2 Set Comebacks'], axis=1).sum() if not p2_games_gbm.empty else 0.0
+        # --- Set Comebacks - VECTORIZED ---
+        p1_set_comebacks = calculate_set_comebacks_vectorized(p1_id, p1_games_gbm)
+        p2_set_comebacks = calculate_set_comebacks_vectorized(p2_id, p2_games_gbm)
         set_comebacks_advantage = p1_set_comebacks - p2_set_comebacks
 
         # --- Model Prediction ---
         gbm_features = pd.DataFrame([{
-            'Time_Since_Last_Advantage': time_since_last_advantage, 
-            'Matches_Last_24H_Advantage': matches_last_24h_advantage, 
+            'Time_Since_Last_Advantage': time_since_last_advantage,
+            'Matches_Last_24H_Advantage': matches_last_24h_advantage,
             'Is_First_Match_Advantage': is_first_match_advantage,
             'PDR_Slope_Advantage': pdr_slope_advantage,
             'H2H_P1_Win_Rate': h2h_p1_win_rate,
@@ -304,11 +407,7 @@ try:
         }])
 
         X_gbm_processed = gbm_preprocessor.transform(gbm_features)
-        gbm_pred = gbm_model.predict_proba(X_gbm_processed)[0, 1]
-        
-        # X_meta = np.array([[gbm_pred, lstm_pred]])
-        # model_prob_p1 = meta_model.predict_proba(X_meta)[0, 1]
-        model_prob_p1 = gbm_pred
+        model_prob_p1 = gbm_model.predict_proba(X_gbm_processed)[0, 1]
 
         # --- Betting Logic ---
         edge_p1 = model_prob_p1 * p1_market_odds - 1
@@ -342,10 +441,24 @@ try:
 
         if bet_details:
             bankroll_history_per_bet.append((match['Date'], bankroll))
-            h2h_df_log = history_df[((history_df['Player 1 ID']==p1_id)&(history_df['Player 2 ID']==p2_id))|((history_df['Player 1 ID']==p2_id)&(history_df['Player 2 ID']==p1_id))]
-            p1_h2h_wins_log = len(h2h_df_log[((h2h_df_log['Player 1 ID']==p1_id)&(h2h_df_log['P1_Win']==1))|((h2h_df_log['Player 2 ID']==p1_id)&(h2h_df_log['P1_Win']==0))])
-            h2h_p1_win_rate_log = p1_h2h_wins_log/len(h2h_df_log) if len(h2h_df_log)>0 else 0.5
-            log_entry = {'Match_ID': match['Match ID'],'Date': match['Date'].strftime('%Y-%m-%d'),'Player_1': match['Player 1'],'Player_2': match['Player 2'], 'Time_Since_Last_Advantage': time_since_last_advantage, 'Matches_Last_24H_Advantage': matches_last_24h_advantage, 'Is_First_Match_Advantage': is_first_match_advantage, 'H2H_P1_Win_Rate': h2h_p1_win_rate_log,'H2H_Dominance_Score': h2h_dominance_score, 'Win_Rate_Advantage': win_rate_advantage, 'Win_Rate_L5_Advantage': win_rate_l5_advantage,'PDR_Advantage': pdr_advantage, 'PDR_Slope_Advantage': pdr_slope_advantage, 'Daily_Fatigue_Advantage': daily_fatigue_advantage, 'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage}
+            # OPTIMIZATION: Reuse already-calculated h2h_p1_win_rate (no duplicate calculation)
+            log_entry = {
+                'Match_ID': match['Match ID'],
+                'Date': match['Date'].strftime('%Y-%m-%d'),
+                'Player_1': match['Player 1'],
+                'Player_2': match['Player 2'],
+                'Time_Since_Last_Advantage': time_since_last_advantage,
+                'Matches_Last_24H_Advantage': matches_last_24h_advantage,
+                'Is_First_Match_Advantage': is_first_match_advantage,
+                'H2H_P1_Win_Rate': h2h_p1_win_rate,  # Reuse calculated value
+                'H2H_Dominance_Score': h2h_dominance_score,
+                'Win_Rate_Advantage': win_rate_advantage,
+                'Win_Rate_L5_Advantage': win_rate_l5_advantage,
+                'PDR_Advantage': pdr_advantage,
+                'PDR_Slope_Advantage': pdr_slope_advantage,
+                'Daily_Fatigue_Advantage': daily_fatigue_advantage,
+                'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage
+            }
             log_entry.update(bet_details)
             bet_log.append(log_entry)
 
