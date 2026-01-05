@@ -1,7 +1,7 @@
 import pandas as pd
 
 # --- 1. Configuration ---
-INPUT_FILE = "final_dataset_v7.4_no_duplicates.csv.gz"  # OPTIMIZATION: uses gzip compression
+INPUT_FILE = "final_dataset_v7.4_no_duplicates.csv"
 TRAINING_FILE = "training_dataset.csv"
 TESTING_FILE = "testing_dataset.csv"
 # We will use a 75/25 split for training and testing; .999 when running system live (no testing data needed)
