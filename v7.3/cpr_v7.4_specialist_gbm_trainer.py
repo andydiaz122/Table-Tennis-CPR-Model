@@ -1,0 +1,69 @@
+import pandas as pd
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.model_selection import GridSearchCV
+import joblib
+
+# --- 1. Configuration ---
+FEATURES_FILE = "training_dataset.csv"
+MODEL_OUTPUT_FILE = "cpr_v7.4_gbm_specialist.joblib"
+PREPROCESSOR_FILE = "gbm_preprocessor_v7.4.joblib"
+
+# --- 2. Main Script Logic ---
+try:
+    print(f"Loading feature data from '{FEATURES_FILE}'...")
+    df = pd.read_csv(FEATURES_FILE)
+    df.dropna(inplace=True)
+    print(f"Loaded {len(df)} matches for GBM re-training.")
+
+    # --- 3. Feature Engineering ---
+    # Create new 'advantage' features from the rolling stats
+    df['Win_Rate_Advantage'] = df['P1_Rolling_Win_Rate_L10'] - df['P2_Rolling_Win_Rate_L10']
+    df['Pressure_Points_Advantage'] = df['P1_Rolling_Pressure_Points_L10'] - df['P2_Rolling_Pressure_Points_L10']
+    df['Rest_Advantage'] = df['P1_Rest_Days'] - df['P2_Rest_Days']
+
+    # Define feature types
+    categorical_features = ['Player 1 ID', 'Player 2 ID']
+    # numerical_features = ['Win_Rate_Advantage', 'Pressure_Points_Advantage', 'Rest_Advantage', 'H2H_P1_Win_Rate']
+    numerical_features = ['Win_Rate_Advantage', 'Pressure_Points_Advantage']
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numerical_features),
+            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+        ])
+
+    X = df[numerical_features + categorical_features]
+    y = df['P1_Win']
+
+    print("Preprocessing data with new features...")
+    X_processed = preprocessor.fit_transform(X)
+
+    # --- 4. Hyperparameter Tuning ---
+    print("\nStarting GridSearchCV to find the best model parameters...")
+    param_grid = {
+    'n_estimators': [100],
+    'learning_rate': [0.01, 0.05],
+    'max_depth': [2],
+    'min_samples_leaf': [40, 50],
+    'subsample': [0.7, 0.8]
+    }
+
+    gbm = GradientBoostingClassifier(random_state=42)
+    grid_search = GridSearchCV(estimator=gbm, param_grid=param_grid, cv=3, n_jobs=-1, verbose=2)
+    grid_search.fit(X_processed, y)
+    
+    print(f"Best parameters found: {grid_search.best_params_}")
+    best_gbm_model = grid_search.best_estimator_
+
+    # --- 5. Save the Final Model ---
+    joblib.dump(best_gbm_model, MODEL_OUTPUT_FILE)
+    joblib.dump(preprocessor, PREPROCESSOR_FILE)
+    
+    print(f"\n✅ Successfully re-trained and saved the GBM model to '{MODEL_OUTPUT_FILE}'")
+
+except FileNotFoundError:
+    print(f"Error: The input file '{FEATURES_FILE}' was not found.")
+except Exception as e:
+    print(f"An error occurred: {e}")

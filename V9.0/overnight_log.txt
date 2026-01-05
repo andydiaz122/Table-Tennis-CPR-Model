@@ -1,0 +1,4 @@
+=== OVERNIGHT AUTONOMOUS RUN ===
+Started: Sun, Jan  4, 2026  4:53:06 AM
+Baseline: ROI 2.44%, Max DD 34.12%
+Ready to begin feature testing

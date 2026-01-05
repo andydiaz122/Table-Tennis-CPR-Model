@@ -1,0 +1,112 @@
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+C:\Users\PC\Documents\Coding\Predictive Modeling\CPR_Model_Local_Build\V9.0\analyze_performance.py:83: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  grouped = df_filtered.groupby(category).agg(
+--- Loading Bet Log from 'backtest_log_for_analysis_v7.4.csv' for Analysis ---
+Successfully loaded 5883 bets to analyze.
+
+--- Forensic Performance Report v7.4 ---
+
+>>> Performance by Market Odds <<<
+           Odds_Category  Total_Bets Total_Profit Total_Staked     ROI
+1     Favorite (1.5-2.0)        3399     $-416.79   $27,024.06  -1.54%
+0  Heavy Favorite (<1.5)        1209     $-312.39   $12,383.51  -2.52%
+2     Underdog (2.0-3.0)        1160     $-147.26    $5,762.64  -2.56%
+3        Longshot (>3.0)         115     $-107.02      $381.63 -28.04%
+--------------------------------------------------
+
+>>> Performance by Model's Perceived Edge <<<
+          Edge_Category  Total_Bets Total_Profit Total_Staked     ROI
+3      Mega Edge (50%+)        1078      $-36.37   $15,291.25  -0.24%
+2    High Edge (25-50%)        1974     $-484.38   $19,546.09  -2.48%
+1  Medium Edge (10-25%)        1752     $-282.69    $9,219.97  -3.07%
+0      Low Edge (0-10%)        1079     $-180.03    $1,494.52 -12.05%
+--------------------------------------------------
+
+>>> Performance by General Form (L20 Win Rate) <<<
+       Form_Category  Total_Bets Total_Profit Total_Staked    ROI
+1    Even Form (L20)         691      $320.20    $4,636.29  6.91%
+2  Better Form (L20)        3267     $-760.08   $25,840.91 -2.94%
+0   Worse Form (L20)        1925     $-543.59   $15,074.63 -3.61%
+--------------------------------------------------
+
+>>> Performance by Recent Form / 'Hot Streak' (L5 Win Rate) <<<
+     Form_L5_Category  Total_Bets Total_Profit Total_Staked    ROI
+2  Hotter Player (L5)        2688      $152.08   $21,360.24  0.71%
+0  Colder Player (L5)        1839     $-190.01   $13,993.59 -1.36%
+1      Even Form (L5)        1356     $-945.53   $10,198.00 -9.27%
+--------------------------------------------------
+
+>>> Performance by Points Dominance Ratio (PDR) <<<
+  PDR_Category  Total_Bets Total_Profit Total_Staked     ROI
+2   Higher PDR        2181    $1,930.43   $17,376.54  11.11%
+1     Even PDR        1746     $-690.26   $13,485.69  -5.12%
+0    Lower PDR        1956   $-2,223.64   $14,689.61 -15.14%
+--------------------------------------------------
+
+>>> Performance by PDR Momentum (Slope) <<<
+   PDR_Slope_Category  Total_Bets Total_Profit Total_Staked    ROI
+1     Stable PDR Form        5394     $-527.04   $40,333.23 -1.31%
+0  Declining PDR Form         200     $-159.04    $2,061.39 -7.72%
+2  Improving PDR Form         289     $-297.38    $3,157.22 -9.42%
+--------------------------------------------------
+
+>>> Performance in Close Sets <<<
+     Close_Set_Category  Total_Bets Total_Profit Total_Staked    ROI
+1    Even in Close Sets        3044     $-177.64   $23,761.72 -0.75%
+0   Worse in Close Sets        1157     $-249.53    $8,519.26 -2.93%
+2  Better in Close Sets        1682     $-556.29   $13,270.85 -4.19%
+--------------------------------------------------
+
+>>> Performance by H2H Dominance Score <<<
+  H2H_Dominance_Category  Total_Bets Total_Profit Total_Staked    ROI
+0          H2H Dominated          45        $8.73       $40.64 21.48%
+1               H2H Even        3606     $-467.10   $25,697.94 -1.82%
+2           H2H Dominant        2232     $-525.09   $19,813.25 -2.65%
+--------------------------------------------------
+
+>>> Performance by Daily Fatigue (Points Played Today) <<<
+              Fatigue_Category  Total_Bets Total_Profit Total_Staked     ROI
+2  Bet on More Fatigued Player        2857     $-130.19   $22,337.06  -0.58%
+0        Bet on Fresher Player        2854     $-790.60   $22,186.41  -3.56%
+1                Even Workload          91     $-112.24      $503.27 -22.30%
+--------------------------------------------------
+
+>>> Performance by Rest (Hours Since Last Match) <<<
+        Rest_Category  Total_Bets Total_Profit Total_Staked     ROI
+0  Bet on Less Rested        1048      $585.01    $8,243.95   7.10%
+1           Even Rest        3775     $-717.03   $29,340.99  -2.44%
+2  Bet on More Rested        1005     $-919.45    $7,661.44 -12.00%
+--------------------------------------------------
+
+>>> Performance by Matches Played in Last 24H <<<
+  Recent_Matches_Category  Total_Bets Total_Profit Total_Staked    ROI
+2     Played More Matches        1821    $1,142.05   $14,143.45  8.07%
+1     Played Same Matches        2259     $-955.15   $17,659.55 -5.41%
+0    Played Fewer Matches        1746   $-1,154.17   $13,436.03 -8.59%
+--------------------------------------------------
+
+>>> Performance by First Match of the Day Status <<<
+     First_Match_Category  Total_Bets Total_Profit Total_Staked    ROI
+0  Opponent's First Match         752      $669.27    $5,989.76 11.17%
+2             Same Status        4416   $-1,262.37   $33,790.14 -3.74%
+1    Player's First Match         715     $-390.37    $5,771.94 -6.76%
+--------------------------------------------------

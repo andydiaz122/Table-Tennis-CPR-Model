@@ -1,0 +1,10 @@
+# Ignore data files
+*.csv
+*.xlsx
+*.data
+
+# Ignore Python cache and virtual environments
+__pycache__/
+.venv/
+venv/
+*.env

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python advanced_feature_engineering_v7.4.py:*)"
+    ]
+  }
+}
