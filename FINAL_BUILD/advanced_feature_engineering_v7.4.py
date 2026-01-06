@@ -322,9 +322,11 @@ try:
 
     # --- Data Cleaning and Preparation ---
     df['Date'] = pd.to_datetime(df['Date'])
-#    df.sort_values(by='Date', inplace=True)
-    # Sort by date first, then by Match_ID to ensure chronological order for the same day
-    df.sort_values(by=['Date', 'Match ID'], inplace=True)
+    # CRITICAL FIX: Create proper DateTime column for sorting
+    # String sorting of Time fails: '8:30:00' > '18:30:00' in ASCII!
+    # This caused matches at 8-9am to see future matches in their history
+    df['DateTime'] = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Time'])
+    df.sort_values(by='DateTime', inplace=True)
     df.reset_index(drop=True, inplace=True)
 
     # Convert IDs to integers for consistent matching
@@ -342,6 +344,11 @@ try:
     df['P1_Win'] = df['Final Score'].apply(get_winner)
     df.dropna(subset=['P1_Win'], inplace=True)
     df['P1_Win'] = df['P1_Win'].astype(int)
+
+    # CRITICAL FIX: Reset index after dropna to maintain sequential indices
+    # Without this, df.iloc[:index] in the main loop includes future matches!
+    # (rows dropped creates gaps in index → iloc uses position, not label)
+    df.reset_index(drop=True, inplace=True)
 
     # ... after df['P1_Win'] = df['P1_Win'].astype(int) ...
     
