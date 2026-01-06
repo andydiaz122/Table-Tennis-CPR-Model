@@ -154,7 +154,7 @@ try:
         'PDR_Slope_Advantage', 'H2H_Dominance_Score', 'Time_Since_Last_Advantage',
         'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage',
         # New v7.4 features
-        'Elo_Diff', 'Glicko_Mu_Diff', 'Glicko_Phi_Sum', 'Clutch_Factor_Diff',
+        'Glicko_Mu_Diff', 'Glicko_Phi_Sum', 'Clutch_Factor_Diff',  # Elo_Diff removed (correlated with Glicko)
         'Pythagorean_Delta_Diff', 'PDR_Variance_Diff', 'H2H_Matches'
     ]
     df.dropna(subset=required_cols, inplace=True)    
@@ -316,8 +316,7 @@ try:
             'Win_Rate_L5_Advantage': win_rate_l5_advantage,
             'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
             'Set_Comebacks_Advantage': set_comebacks_advantage,
-            # New v7.4 features
-            'Elo_Diff': elo_diff,
+            # New v7.4 features (Elo_Diff removed - correlated with Glicko)
             'Glicko_Mu_Diff': glicko_mu_diff,
             'Glicko_Phi_Sum': glicko_phi_sum,
             'Clutch_Factor_Diff': clutch_factor_diff,

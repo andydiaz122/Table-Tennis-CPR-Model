@@ -26,8 +26,15 @@ try:
     # Print the shape after removing duplicates
     print(f"Dataset shape after removing duplicates: {df.shape}")
 
-    # --- NEW: Remove all rows with any NaN values from the testing set ---
-    df.dropna(inplace=True)
+    # --- FIXED: Only drop rows missing CRITICAL columns for betting ---
+    # Previously: df.dropna(inplace=True) dropped ALL rows with ANY NaN
+    # This was too aggressive - dropped rows missing Match Format, Set Scores, etc.
+    # which are not needed for prediction. Only drop rows missing odds or outcome.
+    critical_cols = ['Kickoff_P1_Odds', 'Kickoff_P2_Odds', 'P1_Win']
+    before_dropna = len(df)
+    df.dropna(subset=critical_cols, inplace=True)
+    after_dropna = len(df)
+    print(f"Dropped {before_dropna - after_dropna} rows missing critical columns (odds/outcome)")
 
     # Save the cleaned data to a new CSV file
     df.to_csv('final_dataset_v7.4_no_duplicates.csv', index=False)

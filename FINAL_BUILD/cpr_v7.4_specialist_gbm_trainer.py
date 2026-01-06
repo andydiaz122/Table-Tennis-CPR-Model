@@ -33,9 +33,8 @@ try:
         'Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage',
         'PDR_Slope_Advantage', 'H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'PDR_Advantage',
         'Win_Rate_Advantage', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'Set_Comebacks_Advantage',
-        # New v7.4 features
-        'Elo_Diff',                    # Elo rating difference
-        'Glicko_Mu_Diff',              # Glicko-2 rating difference
+        # New v7.4 features (Elo_Diff REMOVED - 0.765 correlation with Glicko_Mu_Diff)
+        'Glicko_Mu_Diff',              # Glicko-2 rating difference (kept over Elo - more sophisticated)
         'Glicko_Phi_Sum',              # Combined uncertainty
         'Clutch_Factor_Diff',          # Deuce set win rate difference
         'Pythagorean_Delta_Diff',      # Luck factor difference
