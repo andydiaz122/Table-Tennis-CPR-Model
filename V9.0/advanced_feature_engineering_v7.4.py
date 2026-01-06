@@ -283,21 +283,35 @@ try:
         p1_pdr_slope = calculate_performance_slope(player_pdr_history[p1_id])
 
         # CORRECTED: Changed from .sum() / len() to .mean() to perfectly match the backtest script logic.
-        p1_win_rate = p1_rolling_games.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or \
-                                             (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).mean() \
-                                             if not p1_rolling_games.empty else 0.5
+        # OPTIMIZED: Vectorized win rate calculation (Phase 2)
+        if not p1_rolling_games.empty:
+            p1_win_rate = (((p1_rolling_games['Player 1 ID'] == p1_id) & (p1_rolling_games['P1_Win'] == 1)) |
+                          ((p1_rolling_games['Player 2 ID'] == p1_id) & (p1_rolling_games['P1_Win'] == 0))).astype(int).mean()
+        else:
+            p1_win_rate = 0.5
         # Calculate short-term "hot-streak" win rate
         p1_rolling_games_short = p1_games.tail(SHORT_ROLLING_WINDOW)
-        p1_win_rate_l5 = p1_rolling_games_short.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or \
-                                                      (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).mean() \
-                                                      if not p1_rolling_games_short.empty else 0.5
+        # OPTIMIZED: Vectorized L5 win rate calculation (Phase 2)
+        if not p1_rolling_games_short.empty:
+            p1_win_rate_l5 = (((p1_rolling_games_short['Player 1 ID'] == p1_id) & (p1_rolling_games_short['P1_Win'] == 1)) |
+                             ((p1_rolling_games_short['Player 2 ID'] == p1_id) & (p1_rolling_games_short['P1_Win'] == 0))).astype(int).mean()
+        else:
+            p1_win_rate_l5 = 0.5
 
         p1_pressure_points = 0.0
         if not p1_rolling_games.empty:
-            p1_pressure_points = p1_rolling_games.apply(lambda r: r['P1 Pressure Points'] if r['Player 1 ID'] == p1_id else r['P2 Pressure Points'], axis=1).mean()
+            # OPTIMIZED: Vectorized pressure points calculation (Phase 2)
+            p1_pressure_points = np.where(p1_rolling_games['Player 1 ID'] == p1_id,
+                                          p1_rolling_games['P1 Pressure Points'],
+                                          p1_rolling_games['P2 Pressure Points']).mean()
         # - Calculate rolling sum of set comebacks for Player 1
-        p1_rolling_comebacks = p1_rolling_games.apply(lambda r: r['P1 Set Comebacks'] if r['Player 1 ID'] == p1_id else r['P2 Set Comebacks'], axis=1).sum() \
-                                                if not p1_rolling_games.empty else 0
+        # OPTIMIZED: Vectorized set comebacks calculation (Phase 2)
+        if not p1_rolling_games.empty:
+            p1_rolling_comebacks = np.where(p1_rolling_games['Player 1 ID'] == p1_id,
+                                            p1_rolling_games['P1 Set Comebacks'],
+                                            p1_rolling_games['P2 Set Comebacks']).sum()
+        else:
+            p1_rolling_comebacks = 0
         p1_close_set_win_rate = calculate_close_set_win_rate(p1_id, p1_rolling_games)
 
         p1_last_game_date = p1_games['Date'].max()
@@ -324,23 +338,37 @@ try:
         pdr_slope_advantage = p1_pdr_slope - p2_pdr_slope
 
         # CORRECTED: Changed from .sum() / len() to .mean() to perfectly match the backtest script logic.
-        p2_win_rate = p2_rolling_games.apply(lambda r: 1 if (r['Player 1 ID'] == p2_id and r['P1_Win'] == 1) or \
-                                             (r['Player 2 ID'] == p2_id and r['P1_Win'] == 0) else 0, axis=1).mean() \
-                                             if not p2_rolling_games.empty else 0.5
+        # OPTIMIZED: Vectorized win rate calculation (Phase 2)
+        if not p2_rolling_games.empty:
+            p2_win_rate = (((p2_rolling_games['Player 1 ID'] == p2_id) & (p2_rolling_games['P1_Win'] == 1)) |
+                          ((p2_rolling_games['Player 2 ID'] == p2_id) & (p2_rolling_games['P1_Win'] == 0))).astype(int).mean()
+        else:
+            p2_win_rate = 0.5
         # Calculate short-term "hot-streak" win rate
         p2_rolling_games_short = p2_games.tail(SHORT_ROLLING_WINDOW)
-        p2_win_rate_l5 = p2_rolling_games_short.apply(lambda r: 1 if (r['Player 1 ID'] == p2_id and r['P1_Win'] == 1) or \
-                                                      (r['Player 2 ID'] == p2_id and r['P1_Win'] == 0) else 0, axis=1).mean() \
-                                                      if not p2_rolling_games_short.empty else 0.5
+        # OPTIMIZED: Vectorized L5 win rate calculation (Phase 2)
+        if not p2_rolling_games_short.empty:
+            p2_win_rate_l5 = (((p2_rolling_games_short['Player 1 ID'] == p2_id) & (p2_rolling_games_short['P1_Win'] == 1)) |
+                             ((p2_rolling_games_short['Player 2 ID'] == p2_id) & (p2_rolling_games_short['P1_Win'] == 0))).astype(int).mean()
+        else:
+            p2_win_rate_l5 = 0.5
         # After all individual player calculations
         win_rate_advantage_l5 = p1_win_rate_l5 - p2_win_rate_l5
 
         p2_pressure_points = 0.0
         if not p2_rolling_games.empty:
-            p2_pressure_points = p2_rolling_games.apply(lambda r: r['P1 Pressure Points'] if r['Player 1 ID'] == p2_id else r['P2 Pressure Points'], axis=1).mean()
+            # OPTIMIZED: Vectorized pressure points calculation (Phase 2)
+            p2_pressure_points = np.where(p2_rolling_games['Player 1 ID'] == p2_id,
+                                          p2_rolling_games['P1 Pressure Points'],
+                                          p2_rolling_games['P2 Pressure Points']).mean()
         # - Calculate rolling sum of set comebacks for Player 2
-        p2_rolling_comebacks = p2_rolling_games.apply(lambda r: r['P1 Set Comebacks'] if r['Player 1 ID'] == p2_id else r['P2 Set Comebacks'], axis=1).sum() \
-                                                if not p2_rolling_games.empty else 0
+        # OPTIMIZED: Vectorized set comebacks calculation (Phase 2)
+        if not p2_rolling_games.empty:
+            p2_rolling_comebacks = np.where(p2_rolling_games['Player 1 ID'] == p2_id,
+                                            p2_rolling_games['P1 Set Comebacks'],
+                                            p2_rolling_games['P2 Set Comebacks']).sum()
+        else:
+            p2_rolling_comebacks = 0
         p2_close_set_win_rate = calculate_close_set_win_rate(p2_id, p2_rolling_games)
         close_set_win_rate_advantage = p1_close_set_win_rate - p2_close_set_win_rate
 
@@ -360,8 +388,14 @@ try:
         is_first_match_advantage = p1_is_first_match_of_day - p2_is_first_match_of_day
 
         # --- H2H Calculation (using pre-computed h2h_df) ---
-        p1_h2h_wins = h2h_df.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).sum()
-        h2h_p1_win_rate = p1_h2h_wins / len(h2h_df) if len(h2h_df) > 0 else 0.5
+        # OPTIMIZED: Vectorized H2H win count calculation (Phase 2)
+        if len(h2h_df) > 0:
+            p1_h2h_wins = (((h2h_df['Player 1 ID'] == p1_id) & (h2h_df['P1_Win'] == 1)) |
+                          ((h2h_df['Player 2 ID'] == p1_id) & (h2h_df['P1_Win'] == 0))).sum()
+            h2h_p1_win_rate = p1_h2h_wins / len(h2h_df)
+        else:
+            p1_h2h_wins = 0
+            h2h_p1_win_rate = 0.5
 
         # --- H2H Dominance Calculation --- ## MODIFIED ##
         h2h_dominance_score = calculate_h2h_dominance(p1_id, h2h_df, match['Date'], H2H_DECAY_FACTOR)
