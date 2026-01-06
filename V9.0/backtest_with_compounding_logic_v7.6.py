@@ -5,6 +5,7 @@ import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import sys # --- NEW: For exiting gracefully
+from feature_config import get_active_features, get_experiment_name, get_feature_count
 
 
 # - Close set win rate calculation
@@ -288,9 +289,10 @@ try:
         set_comebacks_advantage = p1_set_comebacks - p2_set_comebacks
 
         # --- Model Prediction ---
-        gbm_features = pd.DataFrame([{
-            'Time_Since_Last_Advantage': time_since_last_advantage, 
-            'Matches_Last_24H_Advantage': matches_last_24h_advantage, 
+        # Build full feature dictionary, then filter to active features from config
+        all_features = {
+            'Time_Since_Last_Advantage': time_since_last_advantage,
+            'Matches_Last_24H_Advantage': matches_last_24h_advantage,
             'Is_First_Match_Advantage': is_first_match_advantage,
             'PDR_Slope_Advantage': pdr_slope_advantage,
             'H2H_P1_Win_Rate': h2h_p1_win_rate,
@@ -301,7 +303,10 @@ try:
             'Win_Rate_L5_Advantage': win_rate_l5_advantage,
             'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
             'Set_Comebacks_Advantage': set_comebacks_advantage
-        }])
+        }
+        active_features = get_active_features()
+        gbm_features = pd.DataFrame([{k: v for k, v in all_features.items() if k in active_features}])
+        gbm_features = gbm_features[active_features]  # Ensure column order matches preprocessor
 
         X_gbm_processed = gbm_preprocessor.transform(gbm_features)
         gbm_pred = gbm_model.predict_proba(X_gbm_processed)[0, 1]
