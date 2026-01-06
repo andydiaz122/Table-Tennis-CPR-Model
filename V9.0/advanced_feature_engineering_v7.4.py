@@ -70,18 +70,6 @@ def calculate_h2h_dominance(p1_id, h2h_df, current_date, decay_factor):
 
     return total_weighted_score
 
-def calculate_performance_slope(performance_history):
-    """Calculates the slope of recent performance using linear regression."""
-    if len(performance_history) < 2:
-        return 0.0 # Cannot calculate a slope with fewer than 2 points
-
-    y = np.array(performance_history)
-    x = np.arange(len(y))
-
-    # Use numpy's polyfit to find the slope of the best-fit line (degree 1)
-    slope = np.polyfit(x, y, 1)[0]
-    return slope
-
 # - Points Dominance Ratio calculation logic
 def calculate_pdr(player_id, rolling_games_df):
     """Calculates the Points Dominance Ratio for a single player."""
@@ -124,7 +112,6 @@ RAW_STATS_FILE = "czech_liga_pro_advanced_stats_FIXED.csv"
 OUTPUT_FILE = "final_engineered_features_v7.4.csv" # New, corrected output file
 ROLLING_WINDOW = 20
 SHORT_ROLLING_WINDOW = 5
-SLOPE_WINDOW = 10       # - Number of recent matches to calculate the slope over
 H2H_DECAY_FACTOR = 0.98    # - Decay for H2H recency weighting
 
 
@@ -207,9 +194,7 @@ try:
     STARTING_ELO = 1500
     K_FACTOR = 32 # Common K-factor for Elo calculations
 
-    player_pdr_history = {} ## NEW ## - To track recent PDRs for slope calculation
-
-    print("--- Starting Symmetrical Feature Engineering (OPTIMIZED) ---")
+    print("--- Starting Symmetrical Feature Engineering (OPTIMIZED - 6 Features) ---")
     engineered_rows = []
 
     # Iterate through each match to calculate point-in-time features symmetrically
@@ -256,31 +241,8 @@ try:
         p1_rolling_games = p1_games.tail(ROLLING_WINDOW)
         p2_rolling_games = p2_games.tail(ROLLING_WINDOW)
 
-        # - Daily Fatigue Calculation (filter by today's date from player history)
-        # Filter history for matches played earlier today
-        p1_games_today = p1_games[p1_games['Date'].dt.date == current_date_only]
-        p1_points_today = (p1_games_today['P1 Total Points'] + p1_games_today['P2 Total Points']).sum()
-
-        # Check if it's the first match of the day
-        p1_is_first_match_of_day = 1 if p1_games_today.empty else 0
-
-        p2_games_today = p2_games[p2_games['Date'].dt.date == current_date_only]
-        p2_points_today = (p2_games_today['P1 Total Points'] + p2_games_today['P2 Total Points']).sum()
-
-        p2_is_first_match_of_day = 1 if p2_games_today.empty else 0
-
-        daily_fatigue_advantage = p1_points_today - p2_points_today
-
-
         # --- Symmetrical Stat Calculation for Player 1 ---
         p1_pdr = calculate_pdr(p1_id, p1_rolling_games)
-
-        # - Update PDR history and calculate slope
-        if p1_id not in player_pdr_history: player_pdr_history[p1_id] = []
-        player_pdr_history[p1_id].append(p1_pdr)
-        if len(player_pdr_history[p1_id]) > SLOPE_WINDOW:
-            player_pdr_history[p1_id].pop(0) # Keep the list at the desired size
-        p1_pdr_slope = calculate_performance_slope(player_pdr_history[p1_id])
 
         # CORRECTED: Changed from .sum() / len() to .mean() to perfectly match the backtest script logic.
         # OPTIMIZED: Vectorized win rate calculation (Phase 2)
@@ -298,12 +260,6 @@ try:
         else:
             p1_win_rate_l5 = 0.5
 
-        p1_pressure_points = 0.0
-        if not p1_rolling_games.empty:
-            # OPTIMIZED: Vectorized pressure points calculation (Phase 2)
-            p1_pressure_points = np.where(p1_rolling_games['Player 1 ID'] == p1_id,
-                                          p1_rolling_games['P1 Pressure Points'],
-                                          p1_rolling_games['P2 Pressure Points']).mean()
         # - Calculate rolling sum of set comebacks for Player 1
         # OPTIMIZED: Vectorized set comebacks calculation (Phase 2)
         if not p1_rolling_games.empty:
@@ -314,28 +270,9 @@ try:
             p1_rolling_comebacks = 0
         p1_close_set_win_rate = calculate_close_set_win_rate(p1_id, p1_rolling_games)
 
-        p1_last_game_date = p1_games['Date'].max()
-#        p1_rest_days = (match['Date'] - p1_last_game_date).days if pd.notna(p1_last_game_date) else 30
-        # --- Calculate rest in hours, not days ---
-        if pd.notna(p1_last_game_date):
-            p1_time_since_last_match_hours = (match['Date'] - p1_last_game_date).total_seconds() / 3600
-        else:
-            p1_time_since_last_match_hours = 72 # Default to 3 days for new players
-
-        # --- Calculate matches in the last 24 hours ---
-        p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
-
         # --- Symmetrical Stat Calculation for Player 2 ---
         p2_pdr = calculate_pdr(p2_id, p2_rolling_games)
         pdr_advantage = p1_pdr - p2_pdr
-
-        # - Update PDR history and calculate slope
-        if p2_id not in player_pdr_history: player_pdr_history[p2_id] = []
-        player_pdr_history[p2_id].append(p2_pdr)
-        if len(player_pdr_history[p2_id]) > SLOPE_WINDOW:
-            player_pdr_history[p2_id].pop(0)
-        p2_pdr_slope = calculate_performance_slope(player_pdr_history[p2_id])
-        pdr_slope_advantage = p1_pdr_slope - p2_pdr_slope
 
         # CORRECTED: Changed from .sum() / len() to .mean() to perfectly match the backtest script logic.
         # OPTIMIZED: Vectorized win rate calculation (Phase 2)
@@ -355,12 +292,6 @@ try:
         # After all individual player calculations
         win_rate_advantage_l5 = p1_win_rate_l5 - p2_win_rate_l5
 
-        p2_pressure_points = 0.0
-        if not p2_rolling_games.empty:
-            # OPTIMIZED: Vectorized pressure points calculation (Phase 2)
-            p2_pressure_points = np.where(p2_rolling_games['Player 1 ID'] == p2_id,
-                                          p2_rolling_games['P1 Pressure Points'],
-                                          p2_rolling_games['P2 Pressure Points']).mean()
         # - Calculate rolling sum of set comebacks for Player 2
         # OPTIMIZED: Vectorized set comebacks calculation (Phase 2)
         if not p2_rolling_games.empty:
@@ -371,21 +302,6 @@ try:
             p2_rolling_comebacks = 0
         p2_close_set_win_rate = calculate_close_set_win_rate(p2_id, p2_rolling_games)
         close_set_win_rate_advantage = p1_close_set_win_rate - p2_close_set_win_rate
-
-        p2_last_game_date = p2_games['Date'].max()
-#        p2_rest_days = (match['Date'] - p2_last_game_date).days if pd.notna(p2_last_game_date) else 30
-        # Calculate rest in hours, not days
-        if pd.notna(p2_last_game_date):
-            p2_time_since_last_match_hours = (match['Date'] - p2_last_game_date).total_seconds() / 3600
-        else:
-            p2_time_since_last_match_hours = 72 # Default to 3 days for new players
-
-        # --- Calculate matches in the last 24 hours ---
-        p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
-
-        time_since_last_advantage = p1_time_since_last_match_hours - p2_time_since_last_match_hours
-        matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
-        is_first_match_advantage = p1_is_first_match_of_day - p2_is_first_match_of_day
 
         # --- H2H Calculation (using pre-computed h2h_df) ---
         # OPTIMIZED: Vectorized H2H win count calculation (Phase 2)
@@ -406,27 +322,20 @@ try:
 #        elo_ratings[p1_id] = new_p1_elo
 #        elo_ratings[p2_id] = new_p2_elo
 
-        # Append the new, correct row
+        # Append the new, correct row with the 6 optimal features
         new_row = match.to_dict()
         new_row.update({
-            'PDR_Slope_Advantage': pdr_slope_advantage,
-            'Daily_Fatigue_Advantage': daily_fatigue_advantage,
+            # === 6 OPTIMAL FEATURES (kept after systematic removal analysis) ===
             'PDR_Advantage': pdr_advantage,
-            'P1_Rolling_Win_Rate_L10': p1_win_rate,
-#            'P1_Rolling_Pressure_Points_L10': p1_pressure_points,
-            'P2_Rolling_Win_Rate_L10': p2_win_rate,
             'Win_Rate_L5_Advantage': win_rate_advantage_l5,
-#            'P2_Rolling_Pressure_Points_L10': p2_pressure_points,
             'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
-#            'P1_Rest_Days': p1_rest_days,
-#            'P2_Rest_Days': p2_rest_days,
-            'Time_Since_Last_Advantage': time_since_last_advantage,
-            'Matches_Last_24H_Advantage': matches_last_24h_advantage,
-            'Is_First_Match_Advantage': is_first_match_advantage,
             'H2H_P1_Win_Rate': h2h_p1_win_rate,
             'H2H_Dominance_Score': h2h_dominance_score,
             'P1_Rolling_Set_Comebacks_L20': p1_rolling_comebacks,
-            'P2_Rolling_Set_Comebacks_L20': p2_rolling_comebacks
+            'P2_Rolling_Set_Comebacks_L20': p2_rolling_comebacks,
+            # === Supporting columns for trainer computations ===
+            'P1_Rolling_Win_Rate_L10': p1_win_rate,
+            'P2_Rolling_Win_Rate_L10': p2_win_rate,
         })
         engineered_rows.append(new_row)
 

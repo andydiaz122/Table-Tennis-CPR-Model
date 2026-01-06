@@ -19,10 +19,8 @@ try:
     print(f"Loaded {len(df)} matches for GBM re-training.")
 
     # --- 3. Feature Engineering ---
-    # Create new 'advantage' features from the rolling stats
-    df['Win_Rate_Advantage'] = df['P1_Rolling_Win_Rate_L10'] - df['P2_Rolling_Win_Rate_L10']
-#    df['Pressure_Points_Advantage'] = df['P1_Rolling_Pressure_Points_L10'] - df['P2_Rolling_Pressure_Points_L10']
-#    df['Rest_Advantage'] = df['P1_Rest_Days'] - df['P2_Rest_Days']
+    # Create Set_Comebacks_Advantage from rolling stats
+    # (Win_Rate_Advantage removed - L5 hot streak captures signal better than L20 form)
     df['Set_Comebacks_Advantage'] = df['P1_Rolling_Set_Comebacks_L20'] - df['P2_Rolling_Set_Comebacks_L20']
 
     # Define feature types - loaded from feature_config.py for systematic testing
