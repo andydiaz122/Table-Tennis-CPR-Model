@@ -70,7 +70,7 @@ try:
         header=not file_exists # Only write header if the file does NOT exist
     )
 
-    print(f"\n✅ Data successfully appended to the final dataset!")
+    print(f"\n[SUCCESS] Data successfully appended to the final dataset!")
     print(f" -> {OUTPUT_FILE}")
 
 except FileNotFoundError as e:

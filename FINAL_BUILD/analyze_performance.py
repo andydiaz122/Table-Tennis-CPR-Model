@@ -20,8 +20,8 @@ try:
         'Match_ID', 'Profit', 'Stake', 'Market_Odds', 'Edge', 'H2H_P1_Win_Rate',
         'Win_Rate_Advantage', 'Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage',
         'Is_First_Match_Advantage', 'H2H_Dominance_Score', 'Win_Rate_L5_Advantage',
-        'PDR_Advantage', 'PDR_Slope_Advantage', 'Daily_Fatigue_Advantage', 
-        'Close_Set_Win_Rate_Advantage'
+        'PDR_Advantage', 'PDR_Slope_Advantage', 'Fatigue_Factor_Diff',
+        'Close_Set_Win_Rate_Advantage', 'Elo_Diff', 'Glicko_Mu_Diff', 'Clutch_Factor_Diff'
     ]
     if not all(col in df.columns for col in required_columns):
         missing = [col for col in required_columns if col not in df.columns]
@@ -63,7 +63,7 @@ try:
     df['H2H_Dominance_Category'] = pd.cut(df['Bet_H2H_Dominance'], bins=[-1000, -10, 10, 1000], labels=['H2H Dominated', 'H2H Even', 'H2H Dominant'])
     
     # --- Fatigue and Recency Categories ---
-    df['Bet_Fatigue_Advantage'] = df.apply(get_bet_perspective, axis=1, col_name='Daily_Fatigue_Advantage')
+    df['Bet_Fatigue_Advantage'] = df.apply(get_bet_perspective, axis=1, col_name='Fatigue_Factor_Diff')
     df['Fatigue_Category'] = pd.cut(df['Bet_Fatigue_Advantage'], bins=[-500, -1, 1, 500], labels=['Bet on Fresher Player', 'Even Workload', 'Bet on More Fatigued Player'])
     df['Bet_Rest_Advantage'] = df.apply(get_bet_perspective, axis=1, col_name='Time_Since_Last_Advantage')
     df['Rest_Category'] = pd.cut(df['Bet_Rest_Advantage'], bins=[-500, -12, 12, 500], labels=['Bet on Less Rested', 'Even Rest', 'Bet on More Rested'])

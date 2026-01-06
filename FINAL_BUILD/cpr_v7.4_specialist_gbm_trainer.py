@@ -27,7 +27,22 @@ try:
     # Define feature types
     # CORRECTED: Removed categorical_features list entirely.
 #    numerical_features = ['Win_Rate_Advantage', 'Pressure_Points_Advantage', 'Rest_Advantage']
-    numerical_features = ['Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage', 'PDR_Slope_Advantage', 'H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'Daily_Fatigue_Advantage', 'PDR_Advantage', 'Win_Rate_Advantage', 'Win_Rate_L5_Advantage','Close_Set_Win_Rate_Advantage', 'Set_Comebacks_Advantage']
+    # Updated feature list with new v7.4 features
+    numerical_features = [
+        # Original features
+        'Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage',
+        'PDR_Slope_Advantage', 'H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'PDR_Advantage',
+        'Win_Rate_Advantage', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'Set_Comebacks_Advantage',
+        # New v7.4 features
+        'Elo_Diff',                    # Elo rating difference
+        'Glicko_Mu_Diff',              # Glicko-2 rating difference
+        'Glicko_Phi_Sum',              # Combined uncertainty
+        'Clutch_Factor_Diff',          # Deuce set win rate difference
+        'Pythagorean_Delta_Diff',      # Luck factor difference
+        'Fatigue_Factor_Diff',         # Exponential fatigue (replaces Daily_Fatigue_Advantage)
+        'PDR_Variance_Diff',           # PDR consistency difference
+        'H2H_Matches',                 # H2H sample size
+    ]
 
     # CORRECTED: The preprocessor now ONLY handles numerical features.
     # The ('cat', OneHotEncoder...) transformer has been removed.
@@ -65,7 +80,7 @@ try:
     joblib.dump(best_gbm_model, MODEL_OUTPUT_FILE)
     joblib.dump(preprocessor, PREPROCESSOR_FILE)
     
-    print(f"\n✅ Successfully re-trained and saved the GBM model to '{MODEL_OUTPUT_FILE}'")
+    print(f"\n[SUCCESS] Successfully re-trained and saved the GBM model to '{MODEL_OUTPUT_FILE}'")
 
 except FileNotFoundError:
     print(f"Error: The input file '{FEATURES_FILE}' was not found.")

@@ -147,8 +147,16 @@ try:
     df.drop_duplicates(subset=['Date', 'Player 1', 'Player 2'], keep='first', inplace=True)
 #    df.rename(columns={'P1 Pressure Points': 'P1_Pressure_Points', 'P2 Pressure Points': 'P2_Pressure_Points'}, inplace=True, errors='ignore')
 
-    # --- NEW: Add Elo_Advantage to the required columns check 
-    required_cols = ['P1_Win', 'Kickoff_P1_Odds', 'Kickoff_P2_Odds', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'PDR_Advantage', 'Daily_Fatigue_Advantage', 'PDR_Slope_Advantage', 'H2H_Dominance_Score', 'Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage']
+    # --- NEW: Add v7.4 features to the required columns check
+    required_cols = [
+        'P1_Win', 'Kickoff_P1_Odds', 'Kickoff_P2_Odds', 'Win_Rate_L5_Advantage',
+        'Close_Set_Win_Rate_Advantage', 'PDR_Advantage', 'Fatigue_Factor_Diff',
+        'PDR_Slope_Advantage', 'H2H_Dominance_Score', 'Time_Since_Last_Advantage',
+        'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage',
+        # New v7.4 features
+        'Elo_Diff', 'Glicko_Mu_Diff', 'Glicko_Phi_Sum', 'Clutch_Factor_Diff',
+        'Pythagorean_Delta_Diff', 'PDR_Variance_Diff', 'H2H_Matches'
+    ]
     df.dropna(subset=required_cols, inplace=True)    
 
     df['Date'] = pd.to_datetime(df['Date'], format='mixed')
@@ -251,10 +259,17 @@ try:
         
         pdr_slope_advantage = p1_pdr_slope - p2_pdr_slope
 
-        # NEW: Retrieve the pre-calculated Elo_Advantage from the current match row.
-#        elo_advantage = match['Elo_Advantage']
+        # Retrieve pre-calculated features from the current match row.
         pdr_advantage = match['PDR_Advantage']
-        daily_fatigue_advantage = match['Daily_Fatigue_Advantage']
+        # New v7.4 features
+        elo_diff = match['Elo_Diff']
+        glicko_mu_diff = match['Glicko_Mu_Diff']
+        glicko_phi_sum = match['Glicko_Phi_Sum']
+        clutch_factor_diff = match['Clutch_Factor_Diff']
+        pythagorean_delta_diff = match['Pythagorean_Delta_Diff']
+        fatigue_factor_diff = match['Fatigue_Factor_Diff']
+        pdr_variance_diff = match['PDR_Variance_Diff']
+        h2h_matches = match['H2H_Matches']
 
         # 1. Calculate H2H on-the-fly using ONLY historical data to prevent leakage.
         h2h_df = history_df[((history_df['Player 1 ID'] == p1_id) & (history_df['Player 2 ID'] == p2_id)) | 
@@ -289,18 +304,27 @@ try:
 
         # --- Model Prediction ---
         gbm_features = pd.DataFrame([{
-            'Time_Since_Last_Advantage': time_since_last_advantage, 
-            'Matches_Last_24H_Advantage': matches_last_24h_advantage, 
+            # Original features
+            'Time_Since_Last_Advantage': time_since_last_advantage,
+            'Matches_Last_24H_Advantage': matches_last_24h_advantage,
             'Is_First_Match_Advantage': is_first_match_advantage,
             'PDR_Slope_Advantage': pdr_slope_advantage,
             'H2H_P1_Win_Rate': h2h_p1_win_rate,
             'H2H_Dominance_Score': h2h_dominance_score,
-            'Daily_Fatigue_Advantage': daily_fatigue_advantage,
             'PDR_Advantage': pdr_advantage,
             'Win_Rate_Advantage': win_rate_advantage,
             'Win_Rate_L5_Advantage': win_rate_l5_advantage,
             'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
-            'Set_Comebacks_Advantage': set_comebacks_advantage
+            'Set_Comebacks_Advantage': set_comebacks_advantage,
+            # New v7.4 features
+            'Elo_Diff': elo_diff,
+            'Glicko_Mu_Diff': glicko_mu_diff,
+            'Glicko_Phi_Sum': glicko_phi_sum,
+            'Clutch_Factor_Diff': clutch_factor_diff,
+            'Pythagorean_Delta_Diff': pythagorean_delta_diff,
+            'Fatigue_Factor_Diff': fatigue_factor_diff,
+            'PDR_Variance_Diff': pdr_variance_diff,
+            'H2H_Matches': h2h_matches,
         }])
 
         X_gbm_processed = gbm_preprocessor.transform(gbm_features)
@@ -345,7 +369,18 @@ try:
             h2h_df_log = history_df[((history_df['Player 1 ID']==p1_id)&(history_df['Player 2 ID']==p2_id))|((history_df['Player 1 ID']==p2_id)&(history_df['Player 2 ID']==p1_id))]
             p1_h2h_wins_log = len(h2h_df_log[((h2h_df_log['Player 1 ID']==p1_id)&(h2h_df_log['P1_Win']==1))|((h2h_df_log['Player 2 ID']==p1_id)&(h2h_df_log['P1_Win']==0))])
             h2h_p1_win_rate_log = p1_h2h_wins_log/len(h2h_df_log) if len(h2h_df_log)>0 else 0.5
-            log_entry = {'Match_ID': match['Match ID'],'Date': match['Date'].strftime('%Y-%m-%d'),'Player_1': match['Player 1'],'Player_2': match['Player 2'], 'Time_Since_Last_Advantage': time_since_last_advantage, 'Matches_Last_24H_Advantage': matches_last_24h_advantage, 'Is_First_Match_Advantage': is_first_match_advantage, 'H2H_P1_Win_Rate': h2h_p1_win_rate_log,'H2H_Dominance_Score': h2h_dominance_score, 'Win_Rate_Advantage': win_rate_advantage, 'Win_Rate_L5_Advantage': win_rate_l5_advantage,'PDR_Advantage': pdr_advantage, 'PDR_Slope_Advantage': pdr_slope_advantage, 'Daily_Fatigue_Advantage': daily_fatigue_advantage, 'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage}
+            log_entry = {
+                'Match_ID': match['Match ID'], 'Date': match['Date'].strftime('%Y-%m-%d'),
+                'Player_1': match['Player 1'], 'Player_2': match['Player 2'],
+                'Time_Since_Last_Advantage': time_since_last_advantage,
+                'Matches_Last_24H_Advantage': matches_last_24h_advantage,
+                'Is_First_Match_Advantage': is_first_match_advantage,
+                'H2H_P1_Win_Rate': h2h_p1_win_rate_log, 'H2H_Dominance_Score': h2h_dominance_score,
+                'Win_Rate_Advantage': win_rate_advantage, 'Win_Rate_L5_Advantage': win_rate_l5_advantage,
+                'PDR_Advantage': pdr_advantage, 'PDR_Slope_Advantage': pdr_slope_advantage,
+                'Fatigue_Factor_Diff': fatigue_factor_diff, 'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
+                'Elo_Diff': elo_diff, 'Glicko_Mu_Diff': glicko_mu_diff, 'Clutch_Factor_Diff': clutch_factor_diff,
+            }
             log_entry.update(bet_details)
             bet_log.append(log_entry)
 
@@ -383,12 +418,12 @@ try:
         plt.grid(True)
         plt.yscale('linear')
         plt.savefig(EQUITY_CURVE_FILE)
-        print(f"\n✅ Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
+        print(f"\n[SUCCESS] Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
 
     if bet_log:
         log_df = pd.DataFrame(bet_log)
         log_df.to_csv(ANALYSIS_LOG_FILE, index=False)
-        print(f"\n✅ New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
+        print(f"\n[SUCCESS] New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
         print(f"Total Bets Logged for Analysis: {len(log_df)}")
         
         # NEW: Calculate and plot the ROI for each individual bet
@@ -404,7 +439,7 @@ try:
             plt.ylabel('Return on Investment (%)')
             plt.grid(True, linestyle=':', linewidth=0.5)
             plt.savefig(ROI_PLOT_FILE)
-            print(f"✅ ROI per bet plot saved to '{ROI_PLOT_FILE}'")
+            print(f"[SUCCESS] ROI per bet plot saved to '{ROI_PLOT_FILE}'")
 
 
 except Exception as e:
