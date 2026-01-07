@@ -296,7 +296,7 @@ def glicko2_update(player_mu, player_phi, player_sigma,
 
 
 # --- 1. Configuration ---
-RAW_STATS_FILE = "../../czech_liga_pro_advanced_stats_FIXED.csv"
+RAW_STATS_FILE = "czech_liga_pro_advanced_stats_FIXED.csv"  # Use local 97K match file from V8.0
 OUTPUT_FILE = "final_engineered_features_v7.4.csv" # New, corrected output file
 ROLLING_WINDOW = 20
 SHORT_ROLLING_WINDOW = 5

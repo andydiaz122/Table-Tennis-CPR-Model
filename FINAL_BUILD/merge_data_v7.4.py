@@ -58,16 +58,12 @@ try:
     print(f"Final merged dataset contains {len(df_final)} matches.")
 
     # --- 5. Save the Final Dataset ---
-    # Check if the output file already exists to decide whether to write headers
-    file_exists = os.path.exists(OUTPUT_FILE)
-
-    print(f"\nAppending data to '{OUTPUT_FILE}'...")
+    print(f"\nSaving data to '{OUTPUT_FILE}'...")
 
     df_final.to_csv(
         OUTPUT_FILE,
-        mode='a',          # 'a' stands for append
-        index=False,
-        header=not file_exists # Only write header if the file does NOT exist
+        mode='w',          # Overwrite mode (was 'a' for append)
+        index=False
     )
 
     print(f"\n[SUCCESS] Data successfully appended to the final dataset!")
