@@ -29,15 +29,15 @@ A machine learning pipeline for predicting Czech Liga Pro Table Tennis match out
 | Folder | Usage | Notes |
 |--------|-------|-------|
 | `V9.0/` | **PRIMARY WORK FOLDER** | All development, scripts, pipeline execution |
-| `V8.0/` | Ground truth data access | Reference `.csv` files IF NEEDED only |
-| `FINAL_BUILD/` | **DO NOT USE** | Not the working folder for this branch |
+| `FINAL_BUILD/` | **GROUND TRUTH DATA** | Source for `.csv` files (read-only) |
+| `V8.0/` | Legacy reference | May contain older scripts/models |
 
 ### Important Constraints
 
-1. **NEVER** run scripts from or save outputs to `FINAL_BUILD/`
-2. **ALWAYS** work within the `V9.0/` directory
-3. **MAY** read `.csv` ground truth data from `V8.0/` when needed for validation
-4. **NEVER** modify files in `V8.0/` - read-only access
+1. **ALWAYS** work within the `V9.0/` directory for scripts
+2. **READ** ground truth `.csv` data from `FINAL_BUILD/`
+3. **NEVER** modify or save outputs to `FINAL_BUILD/` - read-only access
+4. **NEVER** run scripts from `FINAL_BUILD/`
 
 ---
 
