@@ -167,6 +167,37 @@ All features are calculated as "advantages" (Player 1 - Player 2):
 
 ---
 
+## Background Execution Rules (CRITICAL)
+
+**Learned from 1.5hr freeze incident - ALWAYS follow these rules:**
+
+### Long-Running Script Timeouts
+
+| Script | Estimated Runtime | Recommended Action |
+|--------|-------------------|-------------------|
+| advanced_feature_engineering_v7.4.py | ~90 minutes | Run in background with 600000ms timeout |
+| cpr_v7.4_specialist_gbm_trainer.py | ~30-60 minutes | Run in background |
+| backtest_with_compounding_logic_v7.6.py | ~10-20 minutes | Run in background |
+| Other scripts | <5 minutes | Can run synchronously |
+
+### Execution Protocol
+
+1. **ALWAYS run Python scripts with `run_in_background: true`** for scripts >5 min
+2. **Set explicit timeout**: 600000ms (10 min) is the maximum, scripts may exceed this
+3. **Wait for user approval** before each pipeline step
+4. **Monitor progress** using `TaskOutput` with `block: false` for status checks
+5. **Log decisions** to `logs/agent_activity/decisions.log`
+
+### Example Background Execution
+
+```bash
+# Feature engineering - ~90 minutes
+python advanced_feature_engineering_v7.4.py
+# Monitor with TaskOutput, don't block waiting
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
