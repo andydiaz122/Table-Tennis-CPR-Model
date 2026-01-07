@@ -6,7 +6,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 # --- 1. Configuration ---
-FINAL_DATASET_FILE = "final_dataset_v7.4_no_duplicates.csv"
+FINAL_DATASET_FILE = "final_dataset_v7.4_no_duplicates.csv.gz"  # OPTIMIZATION: gzip
 GBM_MODEL_FILE = "cpr_v7.4_gbm_specialist.joblib"
 GBM_PREPROCESSOR_FILE = "gbm_preprocessor_v7.4.joblib"
 LSTM_MODEL_FILE = "cpr_v7.1_lstm_specialist.h5"

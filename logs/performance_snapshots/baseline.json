@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-01-05T23:00:00Z",
+  "commit": "e4d54b7",
+  "branch": "speed-bottleneck-v1",
+  "description": "V9.0 baseline - extracted from existing logs (pipeline not re-run)",
+  "metrics": {
+    "roi": 2.44,
+    "sharpe_ratio": 2.80,
+    "max_drawdown": 34.12,
+    "total_bets": 4503,
+    "win_rate": null,
+    "total_profit": 990.86,
+    "final_bankroll": 1990.86
+  },
+  "pipeline_runtime_seconds": null,
+  "source_logs": {
+    "backtest_final": "V9.0/logs/08_backtest_final.log",
+    "analyze_performance": "V9.0/logs/07_analyze_performance.log"
+  },
+  "notes": "win_rate and pipeline_runtime_seconds will be populated on next full pipeline run"
+}

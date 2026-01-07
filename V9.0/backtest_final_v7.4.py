@@ -333,12 +333,12 @@ try:
         plt.grid(True)
         plt.yscale('linear')
         plt.savefig(EQUITY_CURVE_FILE)
-        print(f"\n✅ Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
+        print(f"\n[OK] Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
 
     if bet_log:
         log_df = pd.DataFrame(bet_log)
         log_df.to_csv(ANALYSIS_LOG_FILE, index=False)
-        print(f"\n✅ New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
+        print(f"\n[OK] New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
         print(f"Total Bets Logged for Analysis: {len(log_df)}")
         
         # NEW: Calculate and plot the ROI for each individual bet
@@ -354,7 +354,7 @@ try:
             plt.ylabel('Return on Investment (%)')
             plt.grid(True, linestyle=':', linewidth=0.5)
             plt.savefig(ROI_PLOT_FILE)
-            print(f"✅ ROI per bet plot saved to '{ROI_PLOT_FILE}'")
+            print(f"[OK] ROI per bet plot saved to '{ROI_PLOT_FILE}'")
 
 except Exception as e:
     print(f"An error occurred: {e}")

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Start-Process -NoNewWindow -FilePath ''python'' -ArgumentList ''validate_2k.py'' -RedirectStandardOutput ''../logs/pipeline_runs/validate_2k.log'' -RedirectStandardError ''../logs/pipeline_runs/validate_2k_error.log'' -WorkingDirectory ''.'' ; Write-Host ''Validation started in background''\")",
+      "Bash(powershell -Command \"Start-Process -NoNewWindow -FilePath ''python'' -ArgumentList ''validate_2k.py'' -RedirectStandardOutput ''../logs/pipeline_runs/validate_2k_baseline.log'' -RedirectStandardError ''../logs/pipeline_runs/validate_2k_baseline_error.log'' -WorkingDirectory ''.'' ; Write-Host ''Validation started''\")"
+    ]
+  }
+}
