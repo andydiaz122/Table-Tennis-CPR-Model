@@ -11,3 +11,13 @@ venv/
 
 # Ignore old worktree folder (to be deleted)
 V9.0-speed-bottleneck-v1/
+
+# Ignore trained model artifacts
+*.joblib
+
+# Ignore log files
+FINAL_BUILD/logs/
+
+# Ignore Windows artifacts
+nul
+**/nul
