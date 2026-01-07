@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Grep",
+      "Glob",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(git status)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(type:*)",
+      "Bash(echo:*)",
+      "Bash(mkdir:*)",
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(powershell -c:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(del /f:*)",
+      "Bash(format:*)",
+      "Bash(shutdown:*)"
+    ]
+  }
+}

@@ -4,6 +4,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
 import joblib
+from feature_config import get_active_features, get_experiment_name, get_feature_count
 
 # --- 1. Configuration ---
 FEATURES_FILE = "training_dataset.csv"
@@ -18,23 +19,20 @@ try:
     print(f"Loaded {len(df)} matches for GBM re-training.")
 
     # --- 3. Feature Engineering ---
-    # Create new 'advantage' features from the rolling stats
-    df['Win_Rate_Advantage'] = df['P1_Rolling_Win_Rate_L10'] - df['P2_Rolling_Win_Rate_L10']
-#    df['Pressure_Points_Advantage'] = df['P1_Rolling_Pressure_Points_L10'] - df['P2_Rolling_Pressure_Points_L10']
-#    df['Rest_Advantage'] = df['P1_Rest_Days'] - df['P2_Rest_Days']
+    # Create Set_Comebacks_Advantage from rolling stats
+    # (Win_Rate_Advantage removed - L5 hot streak captures signal better than L20 form)
     df['Set_Comebacks_Advantage'] = df['P1_Rolling_Set_Comebacks_L20'] - df['P2_Rolling_Set_Comebacks_L20']
 
-    # Define feature types
+    # Define feature types - loaded from feature_config.py for systematic testing
     # CORRECTED: Removed categorical_features list entirely.
-#    numerical_features = ['Win_Rate_Advantage', 'Pressure_Points_Advantage', 'Rest_Advantage']
-    # V9.0: 12 features (baseline - removed First_Set_Win_Rate_L20_Advantage which hurt ROI)
-    numerical_features = [
-        'Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage',
-        'PDR_Slope_Advantage', 'H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'Daily_Fatigue_Advantage',
-        'PDR_Advantage', 'Win_Rate_Advantage', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage',
-        'Set_Comebacks_Advantage'
-    ]
-    print(f"Training with {len(numerical_features)} features: {numerical_features}")
+    numerical_features = get_active_features()
+
+    print(f"=" * 60)
+    print(f"EXPERIMENT: {get_experiment_name()}")
+    print(f"Training with {get_feature_count()} features:")
+    for f in numerical_features:
+        print(f"  - {f}")
+    print(f"=" * 60)
 
     # CORRECTED: The preprocessor now ONLY handles numerical features.
     # The ('cat', OneHotEncoder...) transformer has been removed.

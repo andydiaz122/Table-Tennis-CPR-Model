@@ -5,6 +5,7 @@ import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import sys # --- NEW: For exiting gracefully
+from feature_config import get_active_features, get_experiment_name, get_feature_count
 
 
 # - Close set win rate calculation
@@ -68,46 +69,6 @@ def calculate_h2h_dominance(p1_id, h2h_df, current_match_date, decay_factor):
         
     return total_weighted_score
 
-def calculate_performance_slope(performance_history):
-    """Calculates the slope of recent performance using linear regression."""
-    if len(performance_history) < 2:
-        return 0.0 # Cannot calculate a slope with fewer than 2 points
-
-    y = np.array(performance_history)
-    x = np.arange(len(y))
-    
-    # Use numpy's polyfit to find the slope of the best-fit line (degree 1)
-    slope = np.polyfit(x, y, 1)[0]
-    return slope
-
-def calculate_pdr(player_id, rolling_games_df):
-    """Calculates the Points Dominance Ratio for a single player."""
-    if rolling_games_df.empty:
-        return 0.5 # A neutral default value
-
-    total_points_won = 0
-    total_points_played = 0
-
-    for _, game in rolling_games_df.iterrows():
-        if 'P1 Total Points' not in game or 'P2 Total Points' not in game:
-            continue # Skip if point data is missing
-            
-        if game['Player 1 ID'] == player_id:
-            points_won = game['P1 Total Points']
-            points_lost = game['P2 Total Points']
-        else: # Player was P2
-            points_won = game['P2 Total Points']
-            points_lost = game['P1 Total Points']
-        
-        total_points_won += points_won
-        total_points_played += (points_won + points_lost)
-    
-    if total_points_played == 0:
-        return 0.5
-
-    return total_points_won / total_points_played
-
-
 # --- 1. Configuration ---
 FINAL_DATASET_FILE = "final_dataset_v7.4_no_duplicates.csv"
 GBM_MODEL_FILE = "cpr_v7.4_gbm_specialist.joblib"
@@ -124,7 +85,6 @@ KELLY_FRACTION = 0.035
 TRAIN_SPLIT_PERCENTAGE = 0.70
 ROLLING_WINDOW = 20
 SHORT_ROLLING_WINDOW = 5
-SLOPE_WINDOW = 10       # Used for PDR_Slope_Advantage
 H2H_DECAY_FACTOR = 0.98  # --- NEW: Decay for H2H recency weighting ---
 
 EDGE_THRESHOLD_MIN = .0001
@@ -147,8 +107,8 @@ try:
     df.drop_duplicates(subset=['Date', 'Player 1', 'Player 2'], keep='first', inplace=True)
 #    df.rename(columns={'P1 Pressure Points': 'P1_Pressure_Points', 'P2 Pressure Points': 'P2_Pressure_Points'}, inplace=True, errors='ignore')
 
-    # --- NEW: Add Elo_Advantage to the required columns check 
-    required_cols = ['P1_Win', 'Kickoff_P1_Odds', 'Kickoff_P2_Odds', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'PDR_Advantage', 'Daily_Fatigue_Advantage', 'PDR_Slope_Advantage', 'H2H_Dominance_Score', 'Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage']
+    # Required columns for 6-feature model (removed: Daily_Fatigue, PDR_Slope, Time_Since_Last, Matches_Last_24H, Is_First_Match)
+    required_cols = ['P1_Win', 'Kickoff_P1_Odds', 'Kickoff_P2_Odds', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'PDR_Advantage', 'H2H_Dominance_Score', 'H2H_P1_Win_Rate']
     df.dropna(subset=required_cols, inplace=True)    
 
     df['Date'] = pd.to_datetime(df['Date'], format='mixed')
@@ -181,8 +141,6 @@ try:
     daily_betting_bankroll = INITIAL_BANKROLL
     last_processed_date = None
 
-    player_pdr_history = {}     # Dictionary to track PDR history for the slope
-
     for index, match in tqdm(backtest_df.iterrows(), total=backtest_df.shape[0]):
         
         current_date = match['Date'].date()
@@ -204,25 +162,6 @@ try:
         if len(p1_games_gbm) < MIN_GAMES_THRESHOLD or len(p2_games_gbm) < MIN_GAMES_THRESHOLD:
             continue
 
-        # --- On-the-fly Fatigue and Recency Calculations --- #
-        # 1. Time Since Last Match
-        p1_last_game_date = p1_games['Date'].max()
-        p1_time_since_last = (match['Date'] - p1_last_game_date).total_seconds() / 3600 if pd.notna(p1_last_game_date) else 72
-        p2_last_game_date = p2_games['Date'].max()
-        p2_time_since_last = (match['Date'] - p2_last_game_date).total_seconds() / 3600 if pd.notna(p2_last_game_date) else 72
-        time_since_last_advantage = p1_time_since_last - p2_time_since_last
-
-        # 2. Matches in Last 24 Hours
-        p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
-        p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
-        matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
-
-        # 3. Is First Match of the Day
-        today_history_df = history_df[history_df['Date'].dt.date == match['Date'].date()]
-        p1_is_first_match = 1 if today_history_df[(today_history_df['Player 1 ID'] == p1_id) | (today_history_df['Player 2 ID'] == p1_id)].empty else 0
-        p2_is_first_match = 1 if today_history_df[(today_history_df['Player 1 ID'] == p2_id) | (today_history_df['Player 2 ID'] == p2_id)].empty else 0
-        is_first_match_advantage = p1_is_first_match - p2_is_first_match
-
         # --- On-the-fly "Hot Streak" Win Rate (L5) ---
         p1_rolling_games_short = p1_games.tail(SHORT_ROLLING_WINDOW)
         p1_win_rate_l5 = p1_rolling_games_short.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p1_rolling_games_short.empty else 0.5
@@ -230,33 +169,10 @@ try:
         p2_win_rate_l5 = p2_rolling_games_short.apply(lambda r: 1 if (r['Player 1 ID'] == p2_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p2_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p2_rolling_games_short.empty else 0.5
         win_rate_l5_advantage = p1_win_rate_l5 - p2_win_rate_l5
 
-        # --- On-the-fly PDR Slope Calculation ---    
-        # Calculate current PDR for both players
-        p1_pdr = calculate_pdr(p1_id, p1_games_gbm)
-        p2_pdr = calculate_pdr(p2_id, p2_games_gbm)
-
-        # Update and manage history for Player 1
-        if p1_id not in player_pdr_history: player_pdr_history[p1_id] = []
-        player_pdr_history[p1_id].append(p1_pdr)
-        if len(player_pdr_history[p1_id]) > SLOPE_WINDOW:
-            player_pdr_history[p1_id].pop(0)
-        p1_pdr_slope = calculate_performance_slope(player_pdr_history[p1_id])
-
-        # Update and manage history for Player 2
-        if p2_id not in player_pdr_history: player_pdr_history[p2_id] = []
-        player_pdr_history[p2_id].append(p2_pdr)
-        if len(player_pdr_history[p2_id]) > SLOPE_WINDOW:
-            player_pdr_history[p2_id].pop(0)
-        p2_pdr_slope = calculate_performance_slope(player_pdr_history[p2_id])
-        
-        pdr_slope_advantage = p1_pdr_slope - p2_pdr_slope
-
-        # NEW: Retrieve the pre-calculated Elo_Advantage from the current match row.
-#        elo_advantage = match['Elo_Advantage']
+        # Retrieve PDR_Advantage from the dataset
         pdr_advantage = match['PDR_Advantage']
-        daily_fatigue_advantage = match['Daily_Fatigue_Advantage']
 
-        # 1. Calculate H2H on-the-fly using ONLY historical data to prevent leakage.
+        # Calculate H2H on-the-fly using ONLY historical data to prevent leakage.
         h2h_df = history_df[((history_df['Player 1 ID'] == p1_id) & (history_df['Player 2 ID'] == p2_id)) | 
                               ((history_df['Player 1 ID'] == p2_id) & (history_df['Player 2 ID'] == p1_id))]
         
@@ -270,38 +186,29 @@ try:
         # --- On-the-fly H2H Dominance Calculation ---
         h2h_dominance_score = calculate_h2h_dominance(p1_id, h2h_df, match['Date'], H2H_DECAY_FACTOR)
 
-        p1_win_rate = p1_games_gbm.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p1_games_gbm.empty else 0.5
-        p2_win_rate = p2_games_gbm.apply(lambda r: 1 if (r['Player 1 ID'] == p2_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p2_id and r['P1_Win'] == 0) else 0, axis=1).mean() if not p2_games_gbm.empty else 0.5
-        win_rate_advantage = p1_win_rate - p2_win_rate
-        
-#        p1_pressure_points = p1_games_gbm.apply(lambda r: r['P1_Pressure_Points'] if r['Player 1 ID'] == p1_id else r['P2_Pressure_Points'], axis=1).mean() if not p1_games_gbm.empty else 0.0
-#        p2_pressure_points = p2_games_gbm.apply(lambda r: r['P1_Pressure_Points'] if r['Player 1 ID'] == p2_id else r['P2_Pressure_Points'], axis=1).mean() if not p2_games_gbm.empty else 0.0
-#        pressure_points_advantage = p1_pressure_points - p2_pressure_points
-
-        # --- Replaced Pressure Points with Close Set Win Rate --- #
+        # --- Close Set Win Rate --- #
         p1_close_set_win_rate = calculate_close_set_win_rate(p1_id, p1_games_gbm)
         p2_close_set_win_rate = calculate_close_set_win_rate(p2_id, p2_games_gbm)
         close_set_win_rate_advantage = p1_close_set_win_rate - p2_close_set_win_rate
 
+        # --- Set Comebacks --- #
         p1_set_comebacks = p1_games_gbm.apply(lambda r: r['P1 Set Comebacks'] if r['Player 1 ID'] == p1_id else r['P2 Set Comebacks'], axis=1).sum() if not p1_games_gbm.empty else 0.0
         p2_set_comebacks = p2_games_gbm.apply(lambda r: r['P1 Set Comebacks'] if r['Player 1 ID'] == p2_id else r['P2 Set Comebacks'], axis=1).sum() if not p2_games_gbm.empty else 0.0
         set_comebacks_advantage = p1_set_comebacks - p2_set_comebacks
 
         # --- Model Prediction ---
-        gbm_features = pd.DataFrame([{
-            'Time_Since_Last_Advantage': time_since_last_advantage, 
-            'Matches_Last_24H_Advantage': matches_last_24h_advantage, 
-            'Is_First_Match_Advantage': is_first_match_advantage,
-            'PDR_Slope_Advantage': pdr_slope_advantage,
+        # Build feature dictionary with the 6 optimal features only
+        all_features = {
             'H2H_P1_Win_Rate': h2h_p1_win_rate,
             'H2H_Dominance_Score': h2h_dominance_score,
-            'Daily_Fatigue_Advantage': daily_fatigue_advantage,
             'PDR_Advantage': pdr_advantage,
-            'Win_Rate_Advantage': win_rate_advantage,
             'Win_Rate_L5_Advantage': win_rate_l5_advantage,
             'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
             'Set_Comebacks_Advantage': set_comebacks_advantage
-        }])
+        }
+        active_features = get_active_features()
+        gbm_features = pd.DataFrame([{k: v for k, v in all_features.items() if k in active_features}])
+        gbm_features = gbm_features[active_features]  # Ensure column order matches preprocessor
 
         X_gbm_processed = gbm_preprocessor.transform(gbm_features)
         gbm_pred = gbm_model.predict_proba(X_gbm_processed)[0, 1]
@@ -342,10 +249,19 @@ try:
 
         if bet_details:
             bankroll_history_per_bet.append((match['Date'], bankroll))
-            h2h_df_log = history_df[((history_df['Player 1 ID']==p1_id)&(history_df['Player 2 ID']==p2_id))|((history_df['Player 1 ID']==p2_id)&(history_df['Player 2 ID']==p1_id))]
-            p1_h2h_wins_log = len(h2h_df_log[((h2h_df_log['Player 1 ID']==p1_id)&(h2h_df_log['P1_Win']==1))|((h2h_df_log['Player 2 ID']==p1_id)&(h2h_df_log['P1_Win']==0))])
-            h2h_p1_win_rate_log = p1_h2h_wins_log/len(h2h_df_log) if len(h2h_df_log)>0 else 0.5
-            log_entry = {'Match_ID': match['Match ID'],'Date': match['Date'].strftime('%Y-%m-%d'),'Player_1': match['Player 1'],'Player_2': match['Player 2'], 'Time_Since_Last_Advantage': time_since_last_advantage, 'Matches_Last_24H_Advantage': matches_last_24h_advantage, 'Is_First_Match_Advantage': is_first_match_advantage, 'H2H_P1_Win_Rate': h2h_p1_win_rate_log,'H2H_Dominance_Score': h2h_dominance_score, 'Win_Rate_Advantage': win_rate_advantage, 'Win_Rate_L5_Advantage': win_rate_l5_advantage,'PDR_Advantage': pdr_advantage, 'PDR_Slope_Advantage': pdr_slope_advantage, 'Daily_Fatigue_Advantage': daily_fatigue_advantage, 'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage}
+            # Log entry with 6 optimal features only
+            log_entry = {
+                'Match_ID': match['Match ID'],
+                'Date': match['Date'].strftime('%Y-%m-%d'),
+                'Player_1': match['Player 1'],
+                'Player_2': match['Player 2'],
+                'H2H_P1_Win_Rate': h2h_p1_win_rate,
+                'H2H_Dominance_Score': h2h_dominance_score,
+                'PDR_Advantage': pdr_advantage,
+                'Win_Rate_L5_Advantage': win_rate_l5_advantage,
+                'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
+                'Set_Comebacks_Advantage': set_comebacks_advantage
+            }
             log_entry.update(bet_details)
             bet_log.append(log_entry)
 
@@ -383,12 +299,12 @@ try:
         plt.grid(True)
         plt.yscale('linear')
         plt.savefig(EQUITY_CURVE_FILE)
-        print(f"\n✅ Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
+        print(f"\n[OK] Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
 
     if bet_log:
         log_df = pd.DataFrame(bet_log)
         log_df.to_csv(ANALYSIS_LOG_FILE, index=False)
-        print(f"\n✅ New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
+        print(f"\n[OK] New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
         print(f"Total Bets Logged for Analysis: {len(log_df)}")
         
         # NEW: Calculate and plot the ROI for each individual bet
@@ -404,7 +320,7 @@ try:
             plt.ylabel('Return on Investment (%)')
             plt.grid(True, linestyle=':', linewidth=0.5)
             plt.savefig(ROI_PLOT_FILE)
-            print(f"✅ ROI per bet plot saved to '{ROI_PLOT_FILE}'")
+            print(f"[OK] ROI per bet plot saved to '{ROI_PLOT_FILE}'")
 
 
 except Exception as e:

@@ -4,6 +4,7 @@ from tensorflow.keras.models import load_model
 import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from feature_config import get_active_features, get_experiment_name, get_feature_count
 
 # --- Helper functions ---
 def calculate_close_set_win_rate(player_id, rolling_games_df):
@@ -216,7 +217,8 @@ try:
         set_comebacks_advantage = p1_set_comebacks - p2_set_comebacks
 
         # --- Model Prediction ---
-        gbm_features = pd.DataFrame([{
+        # Build full feature dictionary, then filter to active features from config
+        all_features = {
             'Time_Since_Last_Advantage': time_since_last_advantage,
             'Matches_Last_24H_Advantage': matches_last_24h_advantage,
             'Is_First_Match_Advantage': is_first_match_advantage,
@@ -229,7 +231,10 @@ try:
             'Win_Rate_L5_Advantage': win_rate_l5_advantage,
             'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage,
             'Set_Comebacks_Advantage': set_comebacks_advantage
-        }])
+        }
+        active_features = get_active_features()
+        gbm_features = pd.DataFrame([{k: v for k, v in all_features.items() if k in active_features}])
+        gbm_features = gbm_features[active_features]  # Ensure column order matches preprocessor
 
         X_gbm_processed = gbm_preprocessor.transform(gbm_features)
         model_prob_p1 = gbm_model.predict_proba(X_gbm_processed)[0, 1]
@@ -328,12 +333,12 @@ try:
         plt.grid(True)
         plt.yscale('linear')
         plt.savefig(EQUITY_CURVE_FILE)
-        print(f"\n✅ Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
+        print(f"\n[OK] Equity curve plot saved to '{EQUITY_CURVE_FILE}'")
 
     if bet_log:
         log_df = pd.DataFrame(bet_log)
         log_df.to_csv(ANALYSIS_LOG_FILE, index=False)
-        print(f"\n✅ New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
+        print(f"\n[OK] New, symmetrical analysis log saved to '{ANALYSIS_LOG_FILE}'")
         print(f"Total Bets Logged for Analysis: {len(log_df)}")
         
         # NEW: Calculate and plot the ROI for each individual bet
@@ -349,7 +354,7 @@ try:
             plt.ylabel('Return on Investment (%)')
             plt.grid(True, linestyle=':', linewidth=0.5)
             plt.savefig(ROI_PLOT_FILE)
-            print(f"✅ ROI per bet plot saved to '{ROI_PLOT_FILE}'")
+            print(f"[OK] ROI per bet plot saved to '{ROI_PLOT_FILE}'")
 
 except Exception as e:
     print(f"An error occurred: {e}")

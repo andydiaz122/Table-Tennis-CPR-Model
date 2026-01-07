@@ -123,22 +123,21 @@ The team collectively possesses expertise in:
 
 ---
 
-## 12 GBM Features
+## 6 GBM Features (Optimized)
 
+After systematic feature removal analysis, we retained only the 6 features with significant predictive value.
 All features are calculated as "advantages" (Player 1 - Player 2):
 
-1. `Time_Since_Last_Advantage` - Hours since last match
-2. `Matches_Last_24H_Advantage` - Match count in last 24h
-3. `Is_First_Match_Advantage` - First match of day indicator
-4. `PDR_Slope_Advantage` - PDR momentum (linear regression)
-5. `H2H_P1_Win_Rate` - Head-to-head win rate
-6. `H2H_Dominance_Score` - Decay-weighted H2H point differential
-7. `Daily_Fatigue_Advantage` - Points played today
-8. `PDR_Advantage` - Points Dominance Ratio
-9. `Win_Rate_Advantage` - L20 rolling win rate
-10. `Win_Rate_L5_Advantage` - L5 "hot streak" win rate
-11. `Close_Set_Win_Rate_Advantage` - Clutch performance
-12. `Set_Comebacks_Advantage` - Comeback ability
+1. `H2H_P1_Win_Rate` - Head-to-head win rate (**CRITICAL** - 0.56% ROI impact)
+2. `H2H_Dominance_Score` - Decay-weighted H2H point differential
+3. `PDR_Advantage` - Points Dominance Ratio
+4. `Win_Rate_L5_Advantage` - L5 "hot streak" win rate
+5. `Close_Set_Win_Rate_Advantage` - Clutch performance in tight sets
+6. `Set_Comebacks_Advantage` - Comeback ability
+
+### Removed Features (Zero Predictive Value)
+- `Time_Since_Last_Advantage`, `Matches_Last_24H_Advantage`, `Is_First_Match_Advantage`
+- `PDR_Slope_Advantage`, `Daily_Fatigue_Advantage`, `Win_Rate_Advantage` (L20)
 
 ---
 
