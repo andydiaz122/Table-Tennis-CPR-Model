@@ -1,7 +1,8 @@
 import pandas as pd
 from tqdm import tqdm
 import numpy as np
-import math 
+from collections import defaultdict
+from bisect import bisect_left 
 
 
 # - Close set win rate calculation
@@ -153,9 +154,71 @@ try:
     df['P1_Win'] = df['Final Score'].apply(get_winner)
     df.dropna(subset=['P1_Win'], inplace=True)
     df['P1_Win'] = df['P1_Win'].astype(int)
+    df.reset_index(drop=True, inplace=True)  # Reset index after dropping rows
 
-    # ... after df['P1_Win'] = df['P1_Win'].astype(int) ...
-    
+    # ==========================================================================
+    # PRE-COMPUTATION PHASE - BUILD INDICES (eliminates O(N^2) bottleneck)
+    # ==========================================================================
+    n_matches = len(df)
+    print(f"--- Building lookup indices for {n_matches} matches ---")
+
+    # Extract columns to numpy arrays for fast access
+    p1_id_arr = df['Player 1 ID'].values
+    p2_id_arr = df['Player 2 ID'].values
+    dates_py = df['Date'].dt.date.values  # Python date objects
+
+    # Build player game indices: player_id -> [(match_idx, was_p1), ...]
+    # This replaces the O(N) filtering with O(1) lookup + O(log N) binary search
+    player_game_indices = defaultdict(list)
+    for idx in range(n_matches):
+        player_game_indices[p1_id_arr[idx]].append((idx, True))
+        player_game_indices[p2_id_arr[idx]].append((idx, False))
+
+    # Build H2H indices: frozenset({p1, p2}) -> [match_idx, ...]
+    h2h_indices = defaultdict(list)
+    for idx in range(n_matches):
+        key = frozenset({p1_id_arr[idx], p2_id_arr[idx]})
+        h2h_indices[key].append(idx)
+
+    # Build date indices: date -> [match_idx, ...]
+    date_indices = defaultdict(list)
+    for idx in range(n_matches):
+        date_indices[dates_py[idx]].append(idx)
+
+    def get_player_games_before(player_id, match_idx, n_games=None):
+        """Get player's games before match_idx using pre-built index. O(log N) instead of O(N)."""
+        games = player_game_indices.get(player_id, [])
+        if not games:
+            return []
+        # Binary search to find position
+        pos = bisect_left(games, (match_idx, False))
+        if n_games is None:
+            return games[:pos]
+        start = max(0, pos - n_games)
+        return games[start:pos]
+
+    def get_h2h_games_before(p1_id, p2_id, match_idx):
+        """Get H2H games before match_idx using pre-built index."""
+        key = frozenset({p1_id, p2_id})
+        all_h2h = h2h_indices.get(key, [])
+        if not all_h2h:
+            return []
+        pos = bisect_left(all_h2h, match_idx)
+        return all_h2h[:pos]
+
+    def get_same_day_games_before(player_id, current_date, match_idx):
+        """Get player's games on current_date before match_idx."""
+        day_matches = date_indices.get(current_date, [])
+        result = []
+        for idx in day_matches:
+            if idx >= match_idx:
+                break
+            if p1_id_arr[idx] == player_id or p2_id_arr[idx] == player_id:
+                result.append(idx)
+        return result
+
+    print("--- Indices built successfully ---")
+
     ## NEW ## - Initialize Elo tracking
     print("--- Initializing Elo Rating System ---")
     elo_ratings = {}
@@ -164,45 +227,46 @@ try:
 
     player_pdr_history = {} ## NEW ## - To track recent PDRs for slope calculation
 
-    print("--- Starting Symmetrical Feature Engineering (this may take a few minutes) ---")
+    print("--- Starting Optimized Feature Engineering ---")
     engineered_rows = []
 
     # Iterate through each match to calculate point-in-time features symmetrically
+    # NOTE: Removed history_df = df.iloc[:index] - this was O(N²) bottleneck!
+    # Now using pre-built indices for O(log N) lookups
     for index, match in tqdm(df.iterrows(), total=df.shape[0]):
-        history_df = df.iloc[:index]
-
         p1_id = match['Player 1 ID']
         p2_id = match['Player 2 ID']
-
-        # - Get pre-match Elo ratings and calculate the advantage feature
-#        p1_pre_match_elo = elo_ratings.get(p1_id, STARTING_ELO)
-#        p2_pre_match_elo = elo_ratings.get(p2_id, STARTING_ELO)
-#        elo_advantage = p1_pre_match_elo - p2_pre_match_elo
-        
-        # - Daily Fatigue Calculation
         current_date = match['Date'].date()
-        
-        # Filter history for matches played earlier today
-        today_history_df = history_df[history_df['Date'].dt.date == current_date]
-        
-        # Calculate P1's workload today
-        p1_games_today = today_history_df[(today_history_df['Player 1 ID'] == p1_id) | (today_history_df['Player 2 ID'] == p1_id)]
-        p1_points_today = (p1_games_today['P1 Total Points'] + p1_games_today['P2 Total Points']).sum()
 
-        # Check if it's the first match of the day
-        p1_is_first_match_of_day = 1 if p1_games_today.empty else 0
+        # --- Daily Fatigue Calculation (using pre-built date index) ---
+        p1_games_today_idx = get_same_day_games_before(p1_id, current_date, index)
+        p2_games_today_idx = get_same_day_games_before(p2_id, current_date, index)
+
+        # Calculate P1's workload today
+        if p1_games_today_idx:
+            p1_games_today = df.iloc[p1_games_today_idx]
+            p1_points_today = (p1_games_today['P1 Total Points'] + p1_games_today['P2 Total Points']).sum()
+        else:
+            p1_points_today = 0
+
+        p1_is_first_match_of_day = 1 if len(p1_games_today_idx) == 0 else 0
 
         # Calculate P2's workload today
-        p2_games_today = today_history_df[(today_history_df['Player 1 ID'] == p2_id) | (today_history_df['Player 2 ID'] == p2_id)]
-        p2_points_today = (p2_games_today['P1 Total Points'] + p2_games_today['P2 Total Points']).sum()
-        
-        p2_is_first_match_of_day = 1 if p2_games_today.empty else 0
+        if p2_games_today_idx:
+            p2_games_today = df.iloc[p2_games_today_idx]
+            p2_points_today = (p2_games_today['P1 Total Points'] + p2_games_today['P2 Total Points']).sum()
+        else:
+            p2_points_today = 0
+
+        p2_is_first_match_of_day = 1 if len(p2_games_today_idx) == 0 else 0
 
         daily_fatigue_advantage = p1_points_today - p2_points_today
 
 
-        # --- Symmetrical Stat Calculation for Player 1 ---
-        p1_games = history_df[(history_df['Player 1 ID'] == p1_id) | (history_df['Player 2 ID'] == p1_id)]
+        # --- Symmetrical Stat Calculation for Player 1 (using pre-built player index) ---
+        p1_all_games_tuples = get_player_games_before(p1_id, index)
+        p1_games_idx = [idx for idx, _ in p1_all_games_tuples]
+        p1_games = df.iloc[p1_games_idx] if p1_games_idx else pd.DataFrame()
         p1_rolling_games = p1_games.tail(ROLLING_WINDOW)
         
         p1_pdr = calculate_pdr(p1_id, p1_rolling_games)
@@ -243,8 +307,10 @@ try:
         # --- Calculate matches in the last 24 hours ---
         p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
 
-        # --- Symmetrical Stat Calculation for Player 2 ---
-        p2_games = history_df[(history_df['Player 1 ID'] == p2_id) | (history_df['Player 2 ID'] == p2_id)]
+        # --- Symmetrical Stat Calculation for Player 2 (using pre-built player index) ---
+        p2_all_games_tuples = get_player_games_before(p2_id, index)
+        p2_games_idx = [idx for idx, _ in p2_all_games_tuples]
+        p2_games = df.iloc[p2_games_idx] if p2_games_idx else pd.DataFrame()
         p2_rolling_games = p2_games.tail(ROLLING_WINDOW)
 
         p2_pdr = calculate_pdr(p2_id, p2_rolling_games)
@@ -294,12 +360,13 @@ try:
         matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
         is_first_match_advantage = p1_is_first_match_of_day - p2_is_first_match_of_day
 
-        # --- H2H Calculation ---
-        h2h_df = history_df[((history_df['Player 1 ID'] == p1_id) & (history_df['Player 2 ID'] == p2_id)) | ((history_df['Player 1 ID'] == p2_id) & (history_df['Player 2 ID'] == p1_id))]
-        p1_h2h_wins = h2h_df.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).sum()
+        # --- H2H Calculation (using pre-built H2H index) ---
+        h2h_idx = get_h2h_games_before(p1_id, p2_id, index)
+        h2h_df = df.iloc[h2h_idx] if h2h_idx else pd.DataFrame()
+        p1_h2h_wins = h2h_df.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).sum() if not h2h_df.empty else 0
         h2h_p1_win_rate = p1_h2h_wins / len(h2h_df) if len(h2h_df) > 0 else 0.5
 
-        # --- H2H Dominance Calculation --- ## MODIFIED ##
+        # --- H2H Dominance Calculation ---
         h2h_dominance_score = calculate_h2h_dominance(p1_id, h2h_df, match['Date'], H2H_DECAY_FACTOR)
         
         # - Update Elo ratings based on the match outcome for the next iteration
