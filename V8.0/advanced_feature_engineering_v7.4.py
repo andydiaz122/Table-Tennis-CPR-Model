@@ -296,16 +296,17 @@ try:
                                                 if not p1_rolling_games.empty else 0
         p1_close_set_win_rate = calculate_close_set_win_rate(p1_id, p1_rolling_games)
 
-        p1_last_game_date = p1_games['Date'].max()
-#        p1_rest_days = (match['Date'] - p1_last_game_date).days if pd.notna(p1_last_game_date) else 30
-        # --- Calculate rest in hours, not days ---
-        if pd.notna(p1_last_game_date):
-            p1_time_since_last_match_hours = (match['Date'] - p1_last_game_date).total_seconds() / 3600
+        # --- Calculate rest in hours and matches in last 24h ---
+        if not p1_games.empty:
+            p1_last_game_date = p1_games['Date'].max()
+            if pd.notna(p1_last_game_date):
+                p1_time_since_last_match_hours = (match['Date'] - p1_last_game_date).total_seconds() / 3600
+            else:
+                p1_time_since_last_match_hours = 72
+            p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
         else:
-            p1_time_since_last_match_hours = 72 # Default to 3 days for new players
-
-        # --- Calculate matches in the last 24 hours ---
-        p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
+            p1_time_since_last_match_hours = 72  # Default to 3 days for new players
+            p1_matches_last_24h = 0
 
         # --- Symmetrical Stat Calculation for Player 2 (using pre-built player index) ---
         p2_all_games_tuples = get_player_games_before(p2_id, index)
@@ -345,16 +346,17 @@ try:
         p2_close_set_win_rate = calculate_close_set_win_rate(p2_id, p2_rolling_games)
         close_set_win_rate_advantage = p1_close_set_win_rate - p2_close_set_win_rate
 
-        p2_last_game_date = p2_games['Date'].max()
-#        p2_rest_days = (match['Date'] - p2_last_game_date).days if pd.notna(p2_last_game_date) else 30
-        # Calculate rest in hours, not days
-        if pd.notna(p2_last_game_date):
-            p2_time_since_last_match_hours = (match['Date'] - p2_last_game_date).total_seconds() / 3600
+        # --- Calculate rest in hours and matches in last 24h for P2 ---
+        if not p2_games.empty:
+            p2_last_game_date = p2_games['Date'].max()
+            if pd.notna(p2_last_game_date):
+                p2_time_since_last_match_hours = (match['Date'] - p2_last_game_date).total_seconds() / 3600
+            else:
+                p2_time_since_last_match_hours = 72
+            p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
         else:
-            p2_time_since_last_match_hours = 72 # Default to 3 days for new players
-
-        # --- Calculate matches in the last 24 hours ---
-        p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
+            p2_time_since_last_match_hours = 72  # Default to 3 days for new players
+            p2_matches_last_24h = 0
         
         time_since_last_advantage = p1_time_since_last_match_hours - p2_time_since_last_match_hours
         matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
