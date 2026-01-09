@@ -154,7 +154,7 @@ try:
     df['P1_Win'] = df['Final Score'].apply(get_winner)
     df.dropna(subset=['P1_Win'], inplace=True)
     df['P1_Win'] = df['P1_Win'].astype(int)
-    df.reset_index(drop=True, inplace=True)  # Reset index after dropping rows
+    df.reset_index(drop=True, inplace=True)  # Fix: reset after dropna for consistent iloc behavior
 
     # ==========================================================================
     # PRE-COMPUTATION PHASE - BUILD INDICES (eliminates O(N^2) bottleneck)
@@ -405,7 +405,7 @@ try:
     final_df = pd.DataFrame(engineered_rows)
     
     final_df.to_csv(OUTPUT_FILE, index=False)
-    print(f"\n✅ Symmetrical feature engineering complete. Data saved to '{OUTPUT_FILE}'")
+    print(f"\nSymmetrical feature engineering complete. Data saved to '{OUTPUT_FILE}'")
 
 except FileNotFoundError:
     print(f"Error: The file '{RAW_STATS_FILE}' was not found. Please run the data collector first.")
