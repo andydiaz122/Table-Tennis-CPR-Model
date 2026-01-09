@@ -71,7 +71,7 @@ try:
 #    )
     df_final.to_csv(OUTPUT_FILE, index=False)
 
-    print(f"\n✅ Data successfully appended to the final dataset!")
+    print(f"\nData successfully appended to the final dataset!")
     print(f" -> {OUTPUT_FILE}")
 
 except FileNotFoundError as e:

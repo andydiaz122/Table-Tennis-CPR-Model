@@ -154,7 +154,7 @@ try:
     df['P1_Win'] = df['Final Score'].apply(get_winner)
     df.dropna(subset=['P1_Win'], inplace=True)
     df['P1_Win'] = df['P1_Win'].astype(int)
-    df.reset_index(drop=True, inplace=True)  # Fix: reset after dropna for consistent iloc behavior
+    # NOTE: Do NOT reset_index here - must preserve original gapped indices to match baseline behavior
 
     # ==========================================================================
     # PRE-COMPUTATION PHASE - BUILD INDICES (eliminates O(N^2) bottleneck)
@@ -162,59 +162,77 @@ try:
     n_matches = len(df)
     print(f"--- Building lookup indices for {n_matches} matches ---")
 
-    # Extract columns to numpy arrays for fast access
+    # Get the actual DataFrame indices (may have gaps after dropna)
+    df_indices = df.index.values  # These are the actual labels with gaps
+
+    # Create mapping from label to position for efficient lookup
+    label_to_pos = {label: pos for pos, label in enumerate(df_indices)}
+
+    # Extract columns to numpy arrays for fast access (by position)
     p1_id_arr = df['Player 1 ID'].values
     p2_id_arr = df['Player 2 ID'].values
     dates_py = df['Date'].dt.date.values  # Python date objects
 
-    # Build player game indices: player_id -> [(match_idx, was_p1), ...]
-    # This replaces the O(N) filtering with O(1) lookup + O(log N) binary search
+    # Build player game indices: player_id -> [(position, was_p1), ...]
+    # Store POSITIONS (not labels) so we can use iloc-style slicing
     player_game_indices = defaultdict(list)
-    for idx in range(n_matches):
-        player_game_indices[p1_id_arr[idx]].append((idx, True))
-        player_game_indices[p2_id_arr[idx]].append((idx, False))
+    for pos in range(n_matches):
+        player_game_indices[p1_id_arr[pos]].append((pos, True))
+        player_game_indices[p2_id_arr[pos]].append((pos, False))
 
-    # Build H2H indices: frozenset({p1, p2}) -> [match_idx, ...]
+    # Build H2H indices: frozenset({p1, p2}) -> [position, ...]
     h2h_indices = defaultdict(list)
-    for idx in range(n_matches):
-        key = frozenset({p1_id_arr[idx], p2_id_arr[idx]})
-        h2h_indices[key].append(idx)
+    for pos in range(n_matches):
+        key = frozenset({p1_id_arr[pos], p2_id_arr[pos]})
+        h2h_indices[key].append(pos)
 
-    # Build date indices: date -> [match_idx, ...]
+    # Build date indices: date -> [position, ...]
     date_indices = defaultdict(list)
-    for idx in range(n_matches):
-        date_indices[dates_py[idx]].append(idx)
+    for pos in range(n_matches):
+        date_indices[dates_py[pos]].append(pos)
 
-    def get_player_games_before(player_id, match_idx, n_games=None):
-        """Get player's games before match_idx using pre-built index. O(log N) instead of O(N)."""
+    def get_player_games_before(player_id, match_label, n_games=None):
+        """
+        Get player's games before match_label using pre-built index. O(log N) instead of O(N).
+
+        NOTE: match_label is the DataFrame index label (may have gaps).
+        To match original df.iloc[:match_label] behavior, we treat the label as a position cutoff.
+        """
         games = player_game_indices.get(player_id, [])
         if not games:
             return []
-        # Binary search to find position
-        pos = bisect_left(games, (match_idx, False))
+        # Original behavior: df.iloc[:match_label] gets first match_label positions
+        # So we want player games at positions < match_label (clamped to n_matches)
+        cutoff_pos = min(match_label, n_matches)
+        # Binary search to find how many games are before cutoff position
+        pos = bisect_left(games, (cutoff_pos, False))
         if n_games is None:
             return games[:pos]
         start = max(0, pos - n_games)
         return games[start:pos]
 
-    def get_h2h_games_before(p1_id, p2_id, match_idx):
-        """Get H2H games before match_idx using pre-built index."""
+    def get_h2h_games_before(p1_id, p2_id, match_label):
+        """Get H2H games before match_label using pre-built index."""
         key = frozenset({p1_id, p2_id})
         all_h2h = h2h_indices.get(key, [])
         if not all_h2h:
             return []
-        pos = bisect_left(all_h2h, match_idx)
+        # Original behavior: positions < match_label (treating label as position cutoff)
+        cutoff_pos = min(match_label, n_matches)
+        pos = bisect_left(all_h2h, cutoff_pos)
         return all_h2h[:pos]
 
-    def get_same_day_games_before(player_id, current_date, match_idx):
-        """Get player's games on current_date before match_idx."""
+    def get_same_day_games_before(player_id, current_date, match_label):
+        """Get player's games on current_date before match_label."""
         day_matches = date_indices.get(current_date, [])
+        # Original behavior: positions < match_label
+        cutoff_pos = min(match_label, n_matches)
         result = []
-        for idx in day_matches:
-            if idx >= match_idx:
+        for pos in day_matches:
+            if pos >= cutoff_pos:
                 break
-            if p1_id_arr[idx] == player_id or p2_id_arr[idx] == player_id:
-                result.append(idx)
+            if p1_id_arr[pos] == player_id or p2_id_arr[pos] == player_id:
+                result.append(pos)
         return result
 
     print("--- Indices built successfully ---")

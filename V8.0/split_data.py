@@ -49,7 +49,7 @@ try:
     training_df.to_csv(TRAINING_FILE, index=False)
     testing_df.to_csv(TESTING_FILE, index=False)
     
-    print(f"\n✅ Successfully created training and testing files:")
+    print(f"\nSuccessfully created training and testing files:")
     print(f" -> {TRAINING_FILE}")
     print(f" -> {TESTING_FILE}")
 
