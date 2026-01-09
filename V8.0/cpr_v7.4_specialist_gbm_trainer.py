@@ -65,7 +65,7 @@ try:
     joblib.dump(best_gbm_model, MODEL_OUTPUT_FILE)
     joblib.dump(preprocessor, PREPROCESSOR_FILE)
     
-    print(f"\n✅ Successfully re-trained and saved the GBM model to '{MODEL_OUTPUT_FILE}'")
+    print(f"\n[OK] Successfully re-trained and saved the GBM model to '{MODEL_OUTPUT_FILE}'")
 
 except FileNotFoundError:
     print(f"Error: The input file '{FEATURES_FILE}' was not found.")
