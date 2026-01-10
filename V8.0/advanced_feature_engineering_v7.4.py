@@ -164,46 +164,51 @@ try:
 
     player_pdr_history = {} ## NEW ## - To track recent PDRs for slope calculation
 
+    # --- OPTIMIZATION: Pre-build player index for O(1) lookups ---
+    print("--- Building player match indices ---")
+    player_match_indices = {}
+    for idx in range(len(df)):
+        row = df.iloc[idx]
+        for pid in [row['Player 1 ID'], row['Player 2 ID']]:
+            if pid not in player_match_indices:
+                player_match_indices[pid] = []
+            player_match_indices[pid].append(idx)
+
     print("--- Starting Symmetrical Feature Engineering (this may take a few minutes) ---")
     engineered_rows = []
 
     # Iterate through each match to calculate point-in-time features symmetrically
     for index, match in tqdm(df.iterrows(), total=df.shape[0]):
-        history_df = df.iloc[:index]
-
         p1_id = match['Player 1 ID']
         p2_id = match['Player 2 ID']
 
-        # - Get pre-match Elo ratings and calculate the advantage feature
-#        p1_pre_match_elo = elo_ratings.get(p1_id, STARTING_ELO)
-#        p2_pre_match_elo = elo_ratings.get(p2_id, STARTING_ELO)
-#        elo_advantage = p1_pre_match_elo - p2_pre_match_elo
-        
+        # --- OPTIMIZED: Use pre-built indices instead of filtering ---
+        p1_indices = [i for i in player_match_indices.get(p1_id, []) if i < index]
+        p2_indices = [i for i in player_match_indices.get(p2_id, []) if i < index]
+        p1_games = df.iloc[p1_indices] if p1_indices else pd.DataFrame()
+        p2_games = df.iloc[p2_indices] if p2_indices else pd.DataFrame()
+
         # - Daily Fatigue Calculation
         current_date = match['Date'].date()
-        
-        # Filter history for matches played earlier today
-        today_history_df = history_df[history_df['Date'].dt.date == current_date]
-        
-        # Calculate P1's workload today
-        p1_games_today = today_history_df[(today_history_df['Player 1 ID'] == p1_id) | (today_history_df['Player 2 ID'] == p1_id)]
-        p1_points_today = (p1_games_today['P1 Total Points'] + p1_games_today['P2 Total Points']).sum()
+
+        # Filter player games for matches played earlier today
+        p1_games_today = p1_games[p1_games['Date'].dt.date == current_date] if not p1_games.empty else pd.DataFrame()
+        p1_points_today = (p1_games_today['P1 Total Points'] + p1_games_today['P2 Total Points']).sum() if not p1_games_today.empty else 0
 
         # Check if it's the first match of the day
         p1_is_first_match_of_day = 1 if p1_games_today.empty else 0
 
         # Calculate P2's workload today
-        p2_games_today = today_history_df[(today_history_df['Player 1 ID'] == p2_id) | (today_history_df['Player 2 ID'] == p2_id)]
-        p2_points_today = (p2_games_today['P1 Total Points'] + p2_games_today['P2 Total Points']).sum()
-        
+        p2_games_today = p2_games[p2_games['Date'].dt.date == current_date] if not p2_games.empty else pd.DataFrame()
+        p2_points_today = (p2_games_today['P1 Total Points'] + p2_games_today['P2 Total Points']).sum() if not p2_games_today.empty else 0
+
         p2_is_first_match_of_day = 1 if p2_games_today.empty else 0
 
         daily_fatigue_advantage = p1_points_today - p2_points_today
 
 
         # --- Symmetrical Stat Calculation for Player 1 ---
-        p1_games = history_df[(history_df['Player 1 ID'] == p1_id) | (history_df['Player 2 ID'] == p1_id)]
-        p1_rolling_games = p1_games.tail(ROLLING_WINDOW)
+        p1_rolling_games = p1_games.tail(ROLLING_WINDOW) if not p1_games.empty else pd.DataFrame()
         
         p1_pdr = calculate_pdr(p1_id, p1_rolling_games)
 
@@ -232,20 +237,19 @@ try:
                                                 if not p1_rolling_games.empty else 0
         p1_close_set_win_rate = calculate_close_set_win_rate(p1_id, p1_rolling_games)
 
-        p1_last_game_date = p1_games['Date'].max()
-#        p1_rest_days = (match['Date'] - p1_last_game_date).days if pd.notna(p1_last_game_date) else 30
         # --- Calculate rest in hours, not days ---
-        if pd.notna(p1_last_game_date):
+        if not p1_games.empty:
+            p1_last_game_date = p1_games['Date'].max()
             p1_time_since_last_match_hours = (match['Date'] - p1_last_game_date).total_seconds() / 3600
         else:
             p1_time_since_last_match_hours = 72 # Default to 3 days for new players
 
         # --- Calculate matches in the last 24 hours ---
-        p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
+        p1_matches_last_24h = len(p1_games[p1_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))]) if not p1_games.empty else 0
 
         # --- Symmetrical Stat Calculation for Player 2 ---
-        p2_games = history_df[(history_df['Player 1 ID'] == p2_id) | (history_df['Player 2 ID'] == p2_id)]
-        p2_rolling_games = p2_games.tail(ROLLING_WINDOW)
+        # (p2_games already computed at top of loop using pre-built indices)
+        p2_rolling_games = p2_games.tail(ROLLING_WINDOW) if not p2_games.empty else pd.DataFrame()
 
         p2_pdr = calculate_pdr(p2_id, p2_rolling_games)
         pdr_advantage = p1_pdr - p2_pdr
@@ -279,23 +283,27 @@ try:
         p2_close_set_win_rate = calculate_close_set_win_rate(p2_id, p2_rolling_games)
         close_set_win_rate_advantage = p1_close_set_win_rate - p2_close_set_win_rate
 
-        p2_last_game_date = p2_games['Date'].max()
-#        p2_rest_days = (match['Date'] - p2_last_game_date).days if pd.notna(p2_last_game_date) else 30
         # Calculate rest in hours, not days
-        if pd.notna(p2_last_game_date):
+        if not p2_games.empty:
+            p2_last_game_date = p2_games['Date'].max()
             p2_time_since_last_match_hours = (match['Date'] - p2_last_game_date).total_seconds() / 3600
         else:
             p2_time_since_last_match_hours = 72 # Default to 3 days for new players
 
         # --- Calculate matches in the last 24 hours ---
-        p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))])
-        
+        p2_matches_last_24h = len(p2_games[p2_games['Date'] > (match['Date'] - pd.Timedelta(hours=24))]) if not p2_games.empty else 0
+
         time_since_last_advantage = p1_time_since_last_match_hours - p2_time_since_last_match_hours
         matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
         is_first_match_advantage = p1_is_first_match_of_day - p2_is_first_match_of_day
 
-        # --- H2H Calculation ---
-        h2h_df = history_df[((history_df['Player 1 ID'] == p1_id) & (history_df['Player 2 ID'] == p2_id)) | ((history_df['Player 1 ID'] == p2_id) & (history_df['Player 2 ID'] == p1_id))]
+        # --- H2H Calculation (will be optimized in Step 2 with pre-built H2H index) ---
+        # Get H2H games from p1's history where p2 was the opponent
+        if not p1_games.empty:
+            h2h_df = p1_games[((p1_games['Player 1 ID'] == p1_id) & (p1_games['Player 2 ID'] == p2_id)) |
+                              ((p1_games['Player 1 ID'] == p2_id) & (p1_games['Player 2 ID'] == p1_id))]
+        else:
+            h2h_df = pd.DataFrame()
         p1_h2h_wins = h2h_df.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).sum()
         h2h_p1_win_rate = p1_h2h_wins / len(h2h_df) if len(h2h_df) > 0 else 0.5
 
