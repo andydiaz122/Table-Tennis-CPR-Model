@@ -174,6 +174,16 @@ try:
                 player_match_indices[pid] = []
             player_match_indices[pid].append(idx)
 
+    # --- OPTIMIZATION: Pre-build H2H index for O(1) lookups ---
+    print("--- Building H2H match indices ---")
+    h2h_match_indices = {}
+    for idx in range(len(df)):
+        row = df.iloc[idx]
+        key = frozenset([row['Player 1 ID'], row['Player 2 ID']])
+        if key not in h2h_match_indices:
+            h2h_match_indices[key] = []
+        h2h_match_indices[key].append(idx)
+
     print("--- Starting Symmetrical Feature Engineering (this may take a few minutes) ---")
     engineered_rows = []
 
@@ -297,13 +307,10 @@ try:
         matches_last_24h_advantage = p1_matches_last_24h - p2_matches_last_24h
         is_first_match_advantage = p1_is_first_match_of_day - p2_is_first_match_of_day
 
-        # --- H2H Calculation (will be optimized in Step 2 with pre-built H2H index) ---
-        # Get H2H games from p1's history where p2 was the opponent
-        if not p1_games.empty:
-            h2h_df = p1_games[((p1_games['Player 1 ID'] == p1_id) & (p1_games['Player 2 ID'] == p2_id)) |
-                              ((p1_games['Player 1 ID'] == p2_id) & (p1_games['Player 2 ID'] == p1_id))]
-        else:
-            h2h_df = pd.DataFrame()
+        # --- OPTIMIZED: H2H Calculation using pre-built index ---
+        h2h_key = frozenset([p1_id, p2_id])
+        h2h_indices = [i for i in h2h_match_indices.get(h2h_key, []) if i < index]
+        h2h_df = df.iloc[h2h_indices] if h2h_indices else pd.DataFrame()
         p1_h2h_wins = h2h_df.apply(lambda r: 1 if (r['Player 1 ID'] == p1_id and r['P1_Win'] == 1) or (r['Player 2 ID'] == p1_id and r['P1_Win'] == 0) else 0, axis=1).sum()
         h2h_p1_win_rate = p1_h2h_wins / len(h2h_df) if len(h2h_df) > 0 else 0.5
 
