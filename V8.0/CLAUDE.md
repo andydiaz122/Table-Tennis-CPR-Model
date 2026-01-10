@@ -109,13 +109,14 @@ The team collectively possesses expertise in:
 - Econometrics (Causal inference, hypothesis testing)
 - Database Architecture (KDB+/q for time-series)
 - Game Theory & Strategic Behavior
-- Machine Learning: Avoiding Overfitting 
+- Machine Learning: Avoiding Overfitting
+
 ### Invocation Examples
 
 ```
 "Use the Feature Architect to design a new momentum feature"
 "Have the Backtest Integrity Officer audit the latest backtest"
-"Ask the Statistical Arbitrageur to validate the 2.44% ROI significance"
+"Ask the Statistical Arbitrageur to validate the ROI significance"
 "Invoke the GBM Specialist to tune learning rate"
 "Get the Risk & Portfolio Manager to optimize Kelly fraction"
 ```
@@ -228,9 +229,27 @@ If expected baseline cannot be reproduced:
 
 ---
 
+## Verified Baseline (Jan 2026)
+
+**Commit:** `4de4728` (master state after V9.0 cleanup)
+**Date Verified:** 2026-01-10
+**Configuration:** 70/30 train/test split, KELLY_FRACTION = 0.02
+
+| Metric | Value |
+|--------|-------|
+| ROI | **1.50%** |
+| Sharpe Ratio | **2.02** |
+| Max Drawdown | **34.12%** |
+| Total Bets | **4,509** |
+| Final Bankroll | $1,600.48 (from $1,000) |
+
+**Note:** This is the TRUE baseline from master. Previous references to "2.44% ROI" were from a different commit/configuration that could not be reproduced. All future optimization work should target improvement over these verified numbers.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
 | v7.4 | 2025 | Current stable version with GBM specialist |
-| v8.0.0 | Jan 2025 | Git tag `v8.0.0` - Consolidated as main working version. 10-agent team structure, Opus 4.5 integration. Legacy version folders (v6.x-v7.x, V9.0) removed; using git branches for development going forward. 
+| v8.0.0 | Jan 2025 | Git tag `v8.0.0` - Consolidated as main working version. 10-agent team structure, Opus 4.5 integration. Legacy version folders (v6.x-v7.x, V9.0) removed; using git branches for development going forward. |
