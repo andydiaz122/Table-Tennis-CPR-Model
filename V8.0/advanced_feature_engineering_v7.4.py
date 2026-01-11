@@ -220,7 +220,14 @@ try:
         # --- Symmetrical Stat Calculation for Player 1 ---
         p1_rolling_games = p1_games.tail(ROLLING_WINDOW) if not p1_games.empty else pd.DataFrame()
         
-        p1_pdr = calculate_pdr(p1_id, p1_rolling_games)
+        # --- OPTIMIZED: Vectorized PDR calculation ---
+        if not p1_rolling_games.empty:
+            p1_is_player1_pdr = p1_rolling_games['Player 1 ID'] == p1_id
+            p1_points_won = np.where(p1_is_player1_pdr, p1_rolling_games['P1 Total Points'], p1_rolling_games['P2 Total Points']).sum()
+            p1_points_played = p1_rolling_games['P1 Total Points'].sum() + p1_rolling_games['P2 Total Points'].sum()
+            p1_pdr = p1_points_won / p1_points_played if p1_points_played > 0 else 0.5
+        else:
+            p1_pdr = 0.5
 
         # - Update PDR history and calculate slope
         if p1_id not in player_pdr_history: player_pdr_history[p1_id] = []
@@ -268,7 +275,14 @@ try:
         # (p2_games already computed at top of loop using pre-built indices)
         p2_rolling_games = p2_games.tail(ROLLING_WINDOW) if not p2_games.empty else pd.DataFrame()
 
-        p2_pdr = calculate_pdr(p2_id, p2_rolling_games)
+        # --- OPTIMIZED: Vectorized PDR calculation ---
+        if not p2_rolling_games.empty:
+            p2_is_player1_pdr = p2_rolling_games['Player 1 ID'] == p2_id
+            p2_points_won = np.where(p2_is_player1_pdr, p2_rolling_games['P1 Total Points'], p2_rolling_games['P2 Total Points']).sum()
+            p2_points_played = p2_rolling_games['P1 Total Points'].sum() + p2_rolling_games['P2 Total Points'].sum()
+            p2_pdr = p2_points_won / p2_points_played if p2_points_played > 0 else 0.5
+        else:
+            p2_pdr = 0.5
         pdr_advantage = p1_pdr - p2_pdr
 
         # - Update PDR history and calculate slope
