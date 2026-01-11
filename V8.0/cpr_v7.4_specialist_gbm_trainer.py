@@ -27,7 +27,8 @@ try:
     # Define feature types
     # CORRECTED: Removed categorical_features list entirely.
 #    numerical_features = ['Win_Rate_Advantage', 'Pressure_Points_Advantage', 'Rest_Advantage']
-    numerical_features = ['Time_Since_Last_Advantage', 'Matches_Last_24H_Advantage', 'Is_First_Match_Advantage', 'PDR_Slope_Advantage', 'H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'Daily_Fatigue_Advantage', 'PDR_Advantage', 'Win_Rate_Advantage', 'Win_Rate_L5_Advantage','Close_Set_Win_Rate_Advantage', 'Set_Comebacks_Advantage']
+    # 6 optimal features (removed 6 bad features per forensic analysis in commit acd603e)
+    numerical_features = ['H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'PDR_Advantage', 'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'Set_Comebacks_Advantage']
 
     # CORRECTED: The preprocessor now ONLY handles numerical features.
     # The ('cat', OneHotEncoder...) transformer has been removed.
