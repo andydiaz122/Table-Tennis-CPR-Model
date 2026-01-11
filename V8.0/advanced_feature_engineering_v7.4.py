@@ -43,7 +43,7 @@ def calculate_close_set_win_rate(player_id, rolling_games_df):
 
     return total_close_sets_won / total_close_sets_played
 
-# - Head-to-Head Dominance Score calculation
+# - Head-to-Head Dominance Score calculation (VECTORIZED)
 def calculate_h2h_dominance(p1_id, h2h_df, current_date, decay_factor):
     """
     Calculates a recency-weighted H2H dominance score based on point differentials.
@@ -51,22 +51,16 @@ def calculate_h2h_dominance(p1_id, h2h_df, current_date, decay_factor):
     if h2h_df.empty:
         return 0.0
 
-    total_weighted_score = 0
-    
-    for _, game in h2h_df.iterrows():
-        # Calculate recency weight
-        days_ago = (current_date - game['Date']).days
-        weight = decay_factor ** days_ago
-        
-        # Symmetrically calculate point differential from p1's perspective
-        if game['Player 1 ID'] == p1_id:
-            point_diff = game['P1 Total Points'] - game['P2 Total Points']
-        else: # p1 was Player 2 in this historical match
-            point_diff = game['P2 Total Points'] - game['P1 Total Points']
-            
-        total_weighted_score += (point_diff * weight)
-        
-    return total_weighted_score
+    # --- OPTIMIZED: Vectorized calculation ---
+    days_ago = (current_date - h2h_df['Date']).dt.days
+    weights = decay_factor ** days_ago
+
+    is_p1 = h2h_df['Player 1 ID'] == p1_id
+    point_diff = np.where(is_p1,
+                          h2h_df['P1 Total Points'] - h2h_df['P2 Total Points'],
+                          h2h_df['P2 Total Points'] - h2h_df['P1 Total Points'])
+
+    return (point_diff * weights).sum()
 
 def calculate_performance_slope(performance_history):
     """Calculates the slope of recent performance using linear regression."""
