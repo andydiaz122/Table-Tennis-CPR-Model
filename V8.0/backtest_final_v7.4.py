@@ -5,15 +5,36 @@ import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-# --- Elo Rating Function ---
-def update_elo(p1_elo, p2_elo, p1_won, k_factor=32):
-    """Updates Elo ratings for both players after a match."""
+# --- Elo Rating Function with Dynamic K-Factor ---
+def update_elo(p1_elo, p2_elo, p1_won, p1_matches, p2_matches):
+    """
+    Updates Elo ratings with Dynamic K-Factor based on player experience.
+    New players have high K (volatile), veterans have low K (stable).
+    """
     expected_p1 = 1 / (1 + 10 ** ((p2_elo - p1_elo) / 400))
     expected_p2 = 1 / (1 + 10 ** ((p1_elo - p2_elo) / 400))
+
     score_p1 = 1 if p1_won else 0
     score_p2 = 0 if p1_won else 1
-    new_p1_elo = p1_elo + k_factor * (score_p1 - expected_p1)
-    new_p2_elo = p2_elo + k_factor * (score_p2 - expected_p2)
+
+    # Dynamic K-Factor based on match count
+    if p1_matches < 10:
+        k1 = 70  # Placement phase
+    elif p1_matches < 30:
+        k1 = 35  # Development phase
+    else:
+        k1 = 20  # Established phase
+
+    if p2_matches < 10:
+        k2 = 70
+    elif p2_matches < 30:
+        k2 = 35
+    else:
+        k2 = 20
+
+    new_p1_elo = p1_elo + k1 * (score_p1 - expected_p1)
+    new_p2_elo = p2_elo + k2 * (score_p2 - expected_p2)
+
     return new_p1_elo, new_p2_elo
 
 # --- Helper functions ---
@@ -126,7 +147,6 @@ try:
     elo_ratings = {}
     match_counts = {}
     STARTING_ELO = 1500
-    K_FACTOR = 32
     ELO_CONFIDENCE_CAP = 50
 
     for index, match in tqdm(backtest_df.iterrows(), total=backtest_df.shape[0]):
@@ -334,7 +354,7 @@ try:
         # Update Elo ratings for BOTH players AFTER match outcome (for ALL matches, not just bets)
         new_p1_elo, new_p2_elo = update_elo(
             p1_pre_match_elo, p2_pre_match_elo,
-            actual_winner == 1, K_FACTOR
+            actual_winner == 1, p1_matches, p2_matches
         )
         elo_ratings[p1_id] = new_p1_elo
         elo_ratings[p2_id] = new_p2_elo
