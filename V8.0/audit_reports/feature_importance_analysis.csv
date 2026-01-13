@@ -1,0 +1,13 @@
+feature,importance
+H2H_Dominance_Score,0.7228344967629433
+H2H_P1_Win_Rate,0.23360895738117998
+Close_Set_Win_Rate_Advantage,0.019694190683902088
+PDR_Advantage,0.012619646654989578
+Win_Rate_L5_Advantage,0.008201877691829363
+Elo_Advantage,0.0024050225402563294
+P1_Elo,0.0005429701609824646
+P2_Elo,9.283812391708168e-05
+Elo_Sum,0.0
+P1_Elo_Confidence,0.0
+P2_Elo_Confidence,0.0
+Set_Comebacks_Advantage,0.0
