@@ -1,0 +1,110 @@
+{
+  "dead_zones": [
+    {
+      "range": "0.45-0.50",
+      "n_bets": 128,
+      "expected": 0.4758436615747965,
+      "empirical": 0.375,
+      "calibration_error": -0.10084366157479652,
+      "reliability_score": 0.8991563384252035,
+      "type": "overconfident",
+      "severity": "WARNING",
+      "recommendation": "MONITOR - Apply probability correction or reduce stake"
+    },
+    {
+      "range": "0.60-0.65",
+      "n_bets": 573,
+      "expected": 0.626758204882301,
+      "empirical": 0.49040139616055844,
+      "calibration_error": -0.1363568087217426,
+      "reliability_score": 0.8636431912782574,
+      "type": "overconfident",
+      "severity": "WARNING",
+      "recommendation": "MONITOR - Apply probability correction or reduce stake"
+    },
+    {
+      "range": "0.70-0.75",
+      "n_bets": 504,
+      "expected": 0.7258998720444546,
+      "empirical": 0.6111111111111112,
+      "calibration_error": -0.11478876093334345,
+      "reliability_score": 0.8852112390666566,
+      "type": "overconfident",
+      "severity": "WARNING",
+      "recommendation": "MONITOR - Apply probability correction or reduce stake"
+    },
+    {
+      "range": "0.75-0.80",
+      "n_bets": 594,
+      "expected": 0.775423778991644,
+      "empirical": 0.6195286195286195,
+      "calibration_error": -0.15589515946302457,
+      "reliability_score": 0.8441048405369754,
+      "type": "overconfident",
+      "severity": "CRITICAL",
+      "recommendation": "EXCLUDE - Miscalibration exceeds HALT threshold (>15%)"
+    },
+    {
+      "range": "0.80-0.85",
+      "n_bets": 304,
+      "expected": 0.8210817628371393,
+      "empirical": 0.6052631578947368,
+      "calibration_error": -0.21581860494240246,
+      "reliability_score": 0.7841813950575975,
+      "type": "overconfident",
+      "severity": "CRITICAL",
+      "recommendation": "EXCLUDE - Miscalibration exceeds HALT threshold (>15%)"
+    },
+    {
+      "range": "0.85-0.90",
+      "n_bets": 149,
+      "expected": 0.8741987167891608,
+      "empirical": 0.7114093959731543,
+      "calibration_error": -0.1627893208160065,
+      "reliability_score": 0.8372106791839935,
+      "type": "overconfident",
+      "severity": "CRITICAL",
+      "recommendation": "EXCLUDE - Miscalibration exceeds HALT threshold (>15%)"
+    }
+  ],
+  "safe_zones": [
+    {
+      "range": "0.40-0.45",
+      "n_bets": 77,
+      "expected": 0.42675683149276933,
+      "empirical": 0.38961038961038963,
+      "calibration_error": -0.0371464418823797,
+      "reliability_score": 0.9628535581176203,
+      "recommendation": "SAFE - Calibration within acceptable range"
+    },
+    {
+      "range": "0.50-0.55",
+      "n_bets": 223,
+      "expected": 0.5316700444738733,
+      "empirical": 0.4663677130044843,
+      "calibration_error": -0.06530233146938902,
+      "reliability_score": 0.934697668530611,
+      "recommendation": "SAFE - Calibration within acceptable range"
+    },
+    {
+      "range": "0.55-0.60",
+      "n_bets": 397,
+      "expected": 0.5759483979263393,
+      "empirical": 0.5188916876574308,
+      "calibration_error": -0.05705671026890857,
+      "reliability_score": 0.9429432897310914,
+      "recommendation": "SAFE - Calibration within acceptable range"
+    },
+    {
+      "range": "0.65-0.70",
+      "n_bets": 584,
+      "expected": 0.6758489293764484,
+      "empirical": 0.5958904109589042,
+      "calibration_error": -0.0799585184175442,
+      "reliability_score": 0.9200414815824558,
+      "recommendation": "SAFE - Calibration within acceptable range"
+    }
+  ],
+  "total_dead_zones": 6,
+  "total_safe_zones": 4
+}

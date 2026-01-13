@@ -1,0 +1,92 @@
+{
+  "report_type": "CALIBRATION_FORENSIC_REPORT",
+  "generated_at": "2026-01-13T03:49:04.192748",
+  "status": "HALT_TRIGGERED",
+  "halt_reasons": [
+    "Bin 0.75-0.80: 15.6% miscalibration",
+    "Bin 0.80-0.85: 21.6% miscalibration",
+    "Bin 0.85-0.90: 16.3% miscalibration"
+  ],
+  "summary": {
+    "total_bins_analyzed": 10,
+    "dead_zones_critical": 3,
+    "dead_zones_warning": 3,
+    "safe_zones": 4,
+    "overall_brier_score": 0.2615147636423555
+  },
+  "recommendations": [
+    "IMMEDIATE: Do not proceed to Phase 2 until calibration issues resolved",
+    "ACTION: Investigate root cause of miscalibration in flagged bins",
+    "OPTION 1: Implement probability recalibration using Platt scaling or isotonic regression",
+    "OPTION 2: Exclude bets in critically miscalibrated zones (may reduce sample size)",
+    "OPTION 3: Investigate if specific player types or match conditions cause miscalibration"
+  ],
+  "dead_zones_detail": [
+    {
+      "range": "0.45-0.50",
+      "n_bets": 128,
+      "expected": 0.4758436615747965,
+      "empirical": 0.375,
+      "calibration_error": -0.10084366157479652,
+      "reliability_score": 0.8991563384252035,
+      "type": "overconfident",
+      "severity": "WARNING",
+      "recommendation": "MONITOR - Apply probability correction or reduce stake"
+    },
+    {
+      "range": "0.60-0.65",
+      "n_bets": 573,
+      "expected": 0.626758204882301,
+      "empirical": 0.49040139616055844,
+      "calibration_error": -0.1363568087217426,
+      "reliability_score": 0.8636431912782574,
+      "type": "overconfident",
+      "severity": "WARNING",
+      "recommendation": "MONITOR - Apply probability correction or reduce stake"
+    },
+    {
+      "range": "0.70-0.75",
+      "n_bets": 504,
+      "expected": 0.7258998720444546,
+      "empirical": 0.6111111111111112,
+      "calibration_error": -0.11478876093334345,
+      "reliability_score": 0.8852112390666566,
+      "type": "overconfident",
+      "severity": "WARNING",
+      "recommendation": "MONITOR - Apply probability correction or reduce stake"
+    },
+    {
+      "range": "0.75-0.80",
+      "n_bets": 594,
+      "expected": 0.775423778991644,
+      "empirical": 0.6195286195286195,
+      "calibration_error": -0.15589515946302457,
+      "reliability_score": 0.8441048405369754,
+      "type": "overconfident",
+      "severity": "CRITICAL",
+      "recommendation": "EXCLUDE - Miscalibration exceeds HALT threshold (>15%)"
+    },
+    {
+      "range": "0.80-0.85",
+      "n_bets": 304,
+      "expected": 0.8210817628371393,
+      "empirical": 0.6052631578947368,
+      "calibration_error": -0.21581860494240246,
+      "reliability_score": 0.7841813950575975,
+      "type": "overconfident",
+      "severity": "CRITICAL",
+      "recommendation": "EXCLUDE - Miscalibration exceeds HALT threshold (>15%)"
+    },
+    {
+      "range": "0.85-0.90",
+      "n_bets": 149,
+      "expected": 0.8741987167891608,
+      "empirical": 0.7114093959731543,
+      "calibration_error": -0.1627893208160065,
+      "reliability_score": 0.8372106791839935,
+      "type": "overconfident",
+      "severity": "CRITICAL",
+      "recommendation": "EXCLUDE - Miscalibration exceeds HALT threshold (>15%)"
+    }
+  ]
+}
