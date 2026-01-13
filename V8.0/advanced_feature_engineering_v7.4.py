@@ -100,14 +100,36 @@ def calculate_pdr(player_id, rolling_games_df):
 
     return total_points_won / total_points_played
 
-# - Elo calculation logic
-def update_elo(p1_elo, p2_elo, p1_won, k_factor=32):
+# - Elo calculation logic with Dynamic K-Factor
+def update_elo(p1_elo, p2_elo, p1_won, p1_matches, p2_matches):
+    """
+    Updates Elo ratings with Dynamic K-Factor based on player experience.
+    New players have high K (volatile), veterans have low K (stable).
+    """
     expected_p1 = 1 / (1 + 10 ** ((p2_elo - p1_elo) / 400))
     expected_p2 = 1 / (1 + 10 ** ((p1_elo - p2_elo) / 400))
+
     score_p1 = 1 if p1_won else 0
     score_p2 = 0 if p1_won else 1
-    new_p1_elo = p1_elo + k_factor * (score_p1 - expected_p1)
-    new_p2_elo = p2_elo + k_factor * (score_p2 - expected_p2)
+
+    # Dynamic K-Factor based on match count
+    if p1_matches < 10:
+        k1 = 70  # Placement phase
+    elif p1_matches < 30:
+        k1 = 35  # Development phase
+    else:
+        k1 = 20  # Established phase
+
+    if p2_matches < 10:
+        k2 = 70
+    elif p2_matches < 30:
+        k2 = 35
+    else:
+        k2 = 20
+
+    new_p1_elo = p1_elo + k1 * (score_p1 - expected_p1)
+    new_p2_elo = p2_elo + k2 * (score_p2 - expected_p2)
+
     return new_p1_elo, new_p2_elo
 
 
@@ -128,8 +150,9 @@ try:
     # --- Data Cleaning and Preparation ---
     df['Date'] = pd.to_datetime(df['Date'])
 #    df.sort_values(by='Date', inplace=True)
-    # Sort by date first, then by Match_ID to ensure chronological order for the same day
-    df.sort_values(by=['Date', 'Match ID'], inplace=True)
+    # Sort by date first, then by Time to ensure strict chronological order for intra-day matches
+    # (Match ID is NOT guaranteed to be chronological - it's just the BetsAPI event ID)
+    df.sort_values(by=['Date', 'Time'], inplace=True)
     df.reset_index(drop=True, inplace=True)
 
     # Convert IDs to integers for consistent matching
@@ -150,11 +173,12 @@ try:
 
     # ... after df['P1_Win'] = df['P1_Win'].astype(int) ...
     
-    ## NEW ## - Initialize Elo tracking
-    print("--- Initializing Elo Rating System ---")
+    ## NEW ## - Initialize Elo tracking with confidence
+    print("--- Initializing Elo Rating System with Confidence Tracking ---")
     elo_ratings = {}
+    match_counts = {}  # Track match counts per player for confidence calculation
     STARTING_ELO = 1500
-    K_FACTOR = 32 # Common K-factor for Elo calculations
+    ELO_CONFIDENCE_CAP = 50  # Confidence maxes out at 50 matches
 
     player_pdr_history = {} ## NEW ## - To track recent PDRs for slope calculation
 
@@ -185,6 +209,22 @@ try:
     for index, match in tqdm(df.iterrows(), total=df.shape[0]):
         p1_id = match['Player 1 ID']
         p2_id = match['Player 2 ID']
+
+        # - Get pre-match Elo ratings and calculate the advantage feature
+        p1_pre_match_elo = elo_ratings.get(p1_id, STARTING_ELO)
+        p2_pre_match_elo = elo_ratings.get(p2_id, STARTING_ELO)
+        elo_advantage = p1_pre_match_elo - p2_pre_match_elo
+
+        # - Get match counts for confidence calculation
+        p1_matches = match_counts.get(p1_id, 0)
+        p2_matches = match_counts.get(p2_id, 0)
+
+        # - Calculate confidence (0.0 to 1.0) - how reliable is this Elo rating?
+        p1_elo_confidence = min(p1_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
+        p2_elo_confidence = min(p2_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
+
+        # - Elo sum as proxy for match quality (high vs low Elo matches behave differently)
+        elo_sum = p1_pre_match_elo + p2_pre_match_elo
 
         # --- OPTIMIZED: Use pre-built indices instead of filtering ---
         p1_indices = [i for i in player_match_indices.get(p1_id, []) if i < index]
@@ -346,13 +386,25 @@ try:
         
         # - Update Elo ratings based on the match outcome for the next iteration
         p1_won = match['P1_Win'] == 1
-#        new_p1_elo, new_p2_elo = update_elo(p1_pre_match_elo, p2_pre_match_elo, p1_won, K_FACTOR)
-#        elo_ratings[p1_id] = new_p1_elo
-#        elo_ratings[p2_id] = new_p2_elo
+        new_p1_elo, new_p2_elo = update_elo(p1_pre_match_elo, p2_pre_match_elo, p1_won, p1_matches, p2_matches)
+        elo_ratings[p1_id] = new_p1_elo
+        elo_ratings[p2_id] = new_p2_elo
+
+        # - Update match counts for confidence calculation
+        match_counts[p1_id] = p1_matches + 1
+        match_counts[p2_id] = p2_matches + 1
 
         # Append the new, correct row
         new_row = match.to_dict()
         new_row.update({
+            # Elo features (6 new features)
+            'Elo_Advantage': elo_advantage,
+            'P1_Elo': p1_pre_match_elo,
+            'P2_Elo': p2_pre_match_elo,
+            'Elo_Sum': elo_sum,
+            'P1_Elo_Confidence': p1_elo_confidence,
+            'P2_Elo_Confidence': p2_elo_confidence,
+            # Existing features
             'PDR_Slope_Advantage': pdr_slope_advantage,
             'Daily_Fatigue_Advantage': daily_fatigue_advantage,
             'PDR_Advantage': pdr_advantage,

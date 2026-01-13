@@ -5,6 +5,38 @@ import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+# --- Elo Rating Function with Dynamic K-Factor ---
+def update_elo(p1_elo, p2_elo, p1_won, p1_matches, p2_matches):
+    """
+    Updates Elo ratings with Dynamic K-Factor based on player experience.
+    New players have high K (volatile), veterans have low K (stable).
+    """
+    expected_p1 = 1 / (1 + 10 ** ((p2_elo - p1_elo) / 400))
+    expected_p2 = 1 / (1 + 10 ** ((p1_elo - p2_elo) / 400))
+
+    score_p1 = 1 if p1_won else 0
+    score_p2 = 0 if p1_won else 1
+
+    # Dynamic K-Factor based on match count
+    if p1_matches < 10:
+        k1 = 70  # Placement phase
+    elif p1_matches < 30:
+        k1 = 35  # Development phase
+    else:
+        k1 = 20  # Established phase
+
+    if p2_matches < 10:
+        k2 = 70
+    elif p2_matches < 30:
+        k2 = 35
+    else:
+        k2 = 20
+
+    new_p1_elo = p1_elo + k1 * (score_p1 - expected_p1)
+    new_p2_elo = p2_elo + k2 * (score_p2 - expected_p2)
+
+    return new_p1_elo, new_p2_elo
+
 # --- Helper functions ---
 def calculate_close_set_win_rate(player_id, rolling_games_df):
     if rolling_games_df.empty: return 0.5
@@ -111,6 +143,12 @@ try:
     daily_betting_bankroll, last_processed_date = INITIAL_BANKROLL, None
     player_pdr_history = {}
 
+    # Elo Rating System (on-the-fly calculation)
+    elo_ratings = {}
+    match_counts = {}
+    STARTING_ELO = 1500
+    ELO_CONFIDENCE_CAP = 50
+
     for index, match in tqdm(backtest_df.iterrows(), total=backtest_df.shape[0]):
         
         current_date = match['Date'].date()
@@ -121,7 +159,18 @@ try:
         history_df = df.iloc[:index]
         p1_id, p2_id = match['Player 1 ID'], match['Player 2 ID']
         p1_market_odds, p2_market_odds = match['Kickoff_P1_Odds'], match['Kickoff_P2_Odds']
-        
+
+        # --- On-the-fly Elo Calculation ---
+        p1_pre_match_elo = elo_ratings.get(p1_id, STARTING_ELO)
+        p2_pre_match_elo = elo_ratings.get(p2_id, STARTING_ELO)
+        elo_advantage = p1_pre_match_elo - p2_pre_match_elo
+
+        p1_matches = match_counts.get(p1_id, 0)
+        p2_matches = match_counts.get(p2_id, 0)
+        p1_elo_confidence = min(p1_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
+        p2_elo_confidence = min(p2_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
+        elo_sum = p1_pre_match_elo + p2_pre_match_elo
+
         # --- On-the-fly Feature Engineering for GBM model ---
         # Get full history first, then the rolling window
         p1_games = history_df[(history_df['Player 1 ID'] == p1_id) | (history_df['Player 2 ID'] == p1_id)]
@@ -217,8 +266,16 @@ try:
 
         # --- Model Prediction ---
         gbm_features = pd.DataFrame([{
-            'Time_Since_Last_Advantage': time_since_last_advantage, 
-            'Matches_Last_24H_Advantage': matches_last_24h_advantage, 
+            # Elo features (6 new features)
+            'Elo_Advantage': elo_advantage,
+            'P1_Elo': p1_pre_match_elo,
+            'P2_Elo': p2_pre_match_elo,
+            'Elo_Sum': elo_sum,
+            'P1_Elo_Confidence': p1_elo_confidence,
+            'P2_Elo_Confidence': p2_elo_confidence,
+            # Existing features
+            'Time_Since_Last_Advantage': time_since_last_advantage,
+            'Matches_Last_24H_Advantage': matches_last_24h_advantage,
             'Is_First_Match_Advantage': is_first_match_advantage,
             'PDR_Slope_Advantage': pdr_slope_advantage,
             'H2H_P1_Win_Rate': h2h_p1_win_rate,
@@ -293,6 +350,16 @@ try:
             log_entry = {'Match_ID': match['Match ID'],'Date': match['Date'].strftime('%Y-%m-%d'),'Player_1': match['Player 1'],'Player_2': match['Player 2'], 'Time_Since_Last_Advantage': time_since_last_advantage, 'Matches_Last_24H_Advantage': matches_last_24h_advantage, 'Is_First_Match_Advantage': is_first_match_advantage, 'H2H_P1_Win_Rate': h2h_p1_win_rate_log,'H2H_Dominance_Score': h2h_dominance_score, 'Win_Rate_Advantage': win_rate_advantage, 'Win_Rate_L5_Advantage': win_rate_l5_advantage,'PDR_Advantage': pdr_advantage, 'PDR_Slope_Advantage': pdr_slope_advantage, 'Daily_Fatigue_Advantage': daily_fatigue_advantage, 'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage}
             log_entry.update(bet_details)
             bet_log.append(log_entry)
+
+        # Update Elo ratings for BOTH players AFTER match outcome (for ALL matches, not just bets)
+        new_p1_elo, new_p2_elo = update_elo(
+            p1_pre_match_elo, p2_pre_match_elo,
+            actual_winner == 1, p1_matches, p2_matches
+        )
+        elo_ratings[p1_id] = new_p1_elo
+        elo_ratings[p2_id] = new_p2_elo
+        match_counts[p1_id] = p1_matches + 1
+        match_counts[p2_id] = p2_matches + 1
 
     # --- 4. Final Results Summary & Save Log ---
     print("\n--- Final Back-test Summary (Wide Filters, Symmetrical, Normalized Stake) ---")
