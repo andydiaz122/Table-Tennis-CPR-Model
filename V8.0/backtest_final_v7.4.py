@@ -1,3 +1,9 @@
+# =============================================================================
+# WARNING: Do not overwrite V8.0/backtest_log_final_filtered.csv without careful consideration.
+# The current golden file (4509 bets, 1.50% ROI baseline) produces 4.33% ROI after filtering.
+# Regenerating this file may produce different results due to model/data drift.
+# =============================================================================
+
 import pandas as pd
 import numpy as np
 from tensorflow.keras.models import load_model
