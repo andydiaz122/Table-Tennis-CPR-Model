@@ -1,0 +1,29 @@
+{
+  "train_set_size": 68502,
+  "test_set_size": 29359,
+  "train_end_date": "2025-06-22 00:00:00",
+  "test_start_date": "2025-06-22 00:00:00",
+  "time_gap_hours": 0.0,
+  "meets_24h_embargo": false,
+  "last_train_hour_matches": 193,
+  "first_test_hour_matches": 11,
+  "overlapping_players_count": 15,
+  "overlapping_player_ids": [
+    954785,
+    683683,
+    729315,
+    1021765,
+    685545,
+    695372,
+    1145263,
+    1027826,
+    987634,
+    681907,
+    1149975,
+    561176,
+    1122137,
+    701370,
+    678236
+  ],
+  "recommendation": "IMPLEMENT_EMBARGO"
+}
