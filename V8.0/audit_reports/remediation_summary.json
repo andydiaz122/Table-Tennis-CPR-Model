@@ -1,0 +1,28 @@
+{
+  "investigation_timestamp": "2026-01-13T04:07:18.927663",
+  "halt_reason": "Systematic overconfidence in probability bins > 0.75",
+  "findings": {
+    "root_cause": [
+      "H2H_Dominance_Score: 0.7228 importance",
+      "H2H_P1_Win_Rate: 0.2336 importance",
+      "Close_Set_Win_Rate_Advantage: 0.0197 importance"
+    ],
+    "contributing_factors": [
+      "H2H features with small sample sizes"
+    ]
+  },
+  "recommendations": [
+    "IMMEDIATE: Implement probability ceiling of 0.75 for Kelly staking",
+    "IMMEDIATE: Use empirical win rates (not model prob) for bins > 0.70",
+    "SHORT-TERM: Add H2H sample size regularization (dampen H2H effect when n < 5)",
+    "SHORT-TERM: Investigate if MIN_GAMES_THRESHOLD needs increase from 4 to 10",
+    "MEDIUM-TERM: Consider isotonic regression for post-hoc calibration",
+    "VALIDATION: Re-run backtest with probability ceiling and compare ROI"
+  ],
+  "immediate_actions": [
+    "Add PROB_CEILING = 0.75 before Kelly calculation",
+    "Modify Kelly formula: use min(model_prob, PROB_CEILING) for staking",
+    "Log when ceiling is applied for monitoring",
+    "Consider excluding bets where Min_Match_Count < 20 AND Model_Prob > 0.80"
+  ]
+}
