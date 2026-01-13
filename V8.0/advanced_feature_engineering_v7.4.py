@@ -182,6 +182,9 @@ try:
 
     player_pdr_history = {} ## NEW ## - To track recent PDRs for slope calculation
 
+    # --- NEW: Initialize Streak Tracker (O(n) single-pass) ---
+    streak_tracker = {}  # player_id (str) -> current_signed_streak (int)
+
     # --- OPTIMIZATION: Pre-build player index for O(1) lookups ---
     print("--- Building player match indices ---")
     player_match_indices = {}
@@ -222,6 +225,12 @@ try:
         # - Calculate confidence (0.0 to 1.0) - how reliable is this Elo rating?
         p1_elo_confidence = min(p1_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
         p2_elo_confidence = min(p2_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
+
+        # --- NEW: Retrieve PRE-MATCH streak state (O(n) single-pass) ---
+        # Streak = signed integer: positive for wins, negative for losses
+        p1_current_streak = streak_tracker.get(str(p1_id), 0)
+        p2_current_streak = streak_tracker.get(str(p2_id), 0)
+        streak_advantage = max(-10, min(10, p1_current_streak - p2_current_streak))  # Cap at ±10
 
         # - Elo sum as proxy for match quality (high vs low Elo matches behave differently)
         elo_sum = p1_pre_match_elo + p2_pre_match_elo
@@ -394,6 +403,15 @@ try:
         match_counts[p1_id] = p1_matches + 1
         match_counts[p2_id] = p2_matches + 1
 
+        # --- NEW: Update streak state AFTER recording pre-match values ---
+        # Polarity flip rule: win on -3 → +1, loss on +5 → -1
+        if p1_won:
+            streak_tracker[str(p1_id)] = (p1_current_streak + 1) if p1_current_streak >= 0 else 1
+            streak_tracker[str(p2_id)] = (p2_current_streak - 1) if p2_current_streak <= 0 else -1
+        else:
+            streak_tracker[str(p1_id)] = (p1_current_streak - 1) if p1_current_streak <= 0 else -1
+            streak_tracker[str(p2_id)] = (p2_current_streak + 1) if p2_current_streak >= 0 else 1
+
         # Append the new, correct row
         new_row = match.to_dict()
         new_row.update({
@@ -404,6 +422,10 @@ try:
             'Elo_Sum': elo_sum,
             'P1_Elo_Confidence': p1_elo_confidence,
             'P2_Elo_Confidence': p2_elo_confidence,
+            # Streak features (NEW)
+            'P1_Current_Streak': p1_current_streak,
+            'P2_Current_Streak': p2_current_streak,
+            'Streak_Advantage': streak_advantage,
             # Existing features
             'PDR_Slope_Advantage': pdr_slope_advantage,
             'Daily_Fatigue_Advantage': daily_fatigue_advantage,

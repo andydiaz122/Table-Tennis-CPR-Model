@@ -149,6 +149,9 @@ try:
     STARTING_ELO = 1500
     ELO_CONFIDENCE_CAP = 50
 
+    # NEW: Streak tracking (O(n) single-pass)
+    player_streaks = {}  # player_id (str) -> current_signed_streak (int)
+
     for index, match in tqdm(backtest_df.iterrows(), total=backtest_df.shape[0]):
         
         current_date = match['Date'].date()
@@ -170,6 +173,11 @@ try:
         p1_elo_confidence = min(p1_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
         p2_elo_confidence = min(p2_matches, ELO_CONFIDENCE_CAP) / ELO_CONFIDENCE_CAP
         elo_sum = p1_pre_match_elo + p2_pre_match_elo
+
+        # NEW: Retrieve PRE-MATCH streak (before outcome known)
+        p1_streak = player_streaks.get(str(p1_id), 0)
+        p2_streak = player_streaks.get(str(p2_id), 0)
+        streak_advantage = max(-10, min(10, p1_streak - p2_streak))  # Cap at ±10
 
         # --- On-the-fly Feature Engineering for GBM model ---
         # Get full history first, then the rolling window
@@ -266,13 +274,15 @@ try:
 
         # --- Model Prediction ---
         gbm_features = pd.DataFrame([{
-            # Elo features (6 new features)
+            # Elo features (6 features)
             'Elo_Advantage': elo_advantage,
             'P1_Elo': p1_pre_match_elo,
             'P2_Elo': p2_pre_match_elo,
             'Elo_Sum': elo_sum,
             'P1_Elo_Confidence': p1_elo_confidence,
             'P2_Elo_Confidence': p2_elo_confidence,
+            # NEW: Streak feature
+            'Streak_Advantage': streak_advantage,
             # Existing features
             'Time_Since_Last_Advantage': time_since_last_advantage,
             'Matches_Last_24H_Advantage': matches_last_24h_advantage,
@@ -360,6 +370,15 @@ try:
         elo_ratings[p2_id] = new_p2_elo
         match_counts[p1_id] = p1_matches + 1
         match_counts[p2_id] = p2_matches + 1
+
+        # NEW: Update player streaks based on actual outcome (AFTER prediction)
+        # Polarity flip rule: win on -3 → +1, loss on +5 → -1
+        if actual_winner == 1:  # P1 won
+            player_streaks[str(p1_id)] = (p1_streak + 1) if p1_streak >= 0 else 1
+            player_streaks[str(p2_id)] = (p2_streak - 1) if p2_streak <= 0 else -1
+        else:  # P2 won
+            player_streaks[str(p1_id)] = (p1_streak - 1) if p1_streak <= 0 else -1
+            player_streaks[str(p2_id)] = (p2_streak + 1) if p2_streak >= 0 else 1
 
     # --- 4. Final Results Summary & Save Log ---
     print("\n--- Final Back-test Summary (Wide Filters, Symmetrical, Normalized Stake) ---")

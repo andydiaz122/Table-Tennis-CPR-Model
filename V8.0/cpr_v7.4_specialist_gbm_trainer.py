@@ -27,15 +27,17 @@ try:
     # Define feature types
     # CORRECTED: Removed categorical_features list entirely.
 #    numerical_features = ['Win_Rate_Advantage', 'Pressure_Points_Advantage', 'Rest_Advantage']
-    # 6 Elo features (new) + 6 optimal features from forensic analysis = 12 total features
+    # 6 Elo features + 1 Streak feature + 6 optimal features = 13 total features
     numerical_features = [
-        # NEW: Elo features (6 features for skill differential and confidence)
+        # Elo features (6 features for skill differential and confidence)
         'Elo_Advantage',           # Core skill differential
         'P1_Elo',                  # Raw P1 skill (drift detection)
         'P2_Elo',                  # Raw P2 skill (drift detection)
         'Elo_Sum',                 # Match quality proxy
         'P1_Elo_Confidence',       # P1 rating reliability (0.0-1.0)
         'P2_Elo_Confidence',       # P2 rating reliability (0.0-1.0)
+        # NEW: Streak feature (momentum/psychological state)
+        'Streak_Advantage',        # Signed streak differential (capped ±10)
         # 6 optimal features (removed 6 bad features per forensic analysis)
         'H2H_P1_Win_Rate', 'H2H_Dominance_Score', 'PDR_Advantage',
         'Win_Rate_L5_Advantage', 'Close_Set_Win_Rate_Advantage', 'Set_Comebacks_Advantage'
