@@ -1,6 +1,6 @@
 FILTER STACK V8.0 - WATERFALL ANALYSIS (OPTIMIZED)
 ================================================================================
-Timestamp: 2026-01-13 06:52:11
+Timestamp: 2026-01-13 15:15:31
 
 Input file: /Users/christiandiaz/Documents/Coding/table-tennis-cpr-model/V8.0/backtest_log_final_filtered.csv
 
