@@ -1,0 +1,148 @@
+{
+  "audit_timestamp": "2026-01-13T04:28:17.252983",
+  "phase": "1.3 - Loss Pattern Detection",
+  "total_bets_analyzed": 4509,
+  "hour_of_day_analysis": {
+    "late_night_regime": {
+      "hours": "22:00-06:00",
+      "n_bets": 1439,
+      "pct_of_total": 31.913949878021736,
+      "roi": 0.020969366078906565,
+      "win_rate": 0.5976372480889507,
+      "roi_vs_baseline": 0.0060188633003650654,
+      "win_rate_vs_baseline": 0.008371335469744667,
+      "recommendation": "SAFE"
+    },
+    "worst_hours": [
+      {
+        "hour": 5,
+        "n_bets": 127,
+        "win_rate": 0.44881889763779526,
+        "roi": -0.19316088818829072
+      },
+      {
+        "hour": 19,
+        "n_bets": 203,
+        "win_rate": 0.5714285714285714,
+        "roi": -0.13714825515788456
+      },
+      {
+        "hour": 12,
+        "n_bets": 295,
+        "win_rate": 0.5728813559322034,
+        "roi": -0.049680587244903394
+      }
+    ],
+    "best_hours": [
+      {
+        "hour": 18,
+        "n_bets": 158,
+        "win_rate": 0.6708860759493671,
+        "roi": 0.196114992419877
+      },
+      {
+        "hour": 13,
+        "n_bets": 114,
+        "win_rate": 0.6140350877192983,
+        "roi": 0.1409269823553853
+      },
+      {
+        "hour": 3,
+        "n_bets": 297,
+        "win_rate": 0.6127946127946128,
+        "roi": 0.09762945295971892
+      }
+    ]
+  },
+  "h2h_extreme_analysis": {
+    "h2h_100pct_miscalibration": -0.24990674594538198,
+    "recommendation": "Implement H2H sample size regularization when H2H=100% or H2H=0%",
+    "categories": [
+      {
+        "category": "h2h_moderate (35-65%)",
+        "n_bets": 2254,
+        "pct_of_bets": 49.98891106675538,
+        "empirical_win_rate": 0.5425909494232476,
+        "avg_model_prob": 0.6496419422954,
+        "calibration_error": -0.10705099287215236,
+        "roi": -0.01158027947534361,
+        "is_miscalibrated": true
+      },
+      {
+        "category": "h2h_high (65-99%)",
+        "n_bets": 686,
+        "pct_of_bets": 15.2140164116212,
+        "empirical_win_rate": 0.5903790087463557,
+        "avg_model_prob": 0.7205436863105464,
+        "calibration_error": -0.1301646775641907,
+        "roi": -0.0002776944000747205,
+        "is_miscalibrated": true
+      },
+      {
+        "category": "h2h_low (1-35%)",
+        "n_bets": 627,
+        "pct_of_bets": 13.905522288755822,
+        "empirical_win_rate": 0.6028708133971292,
+        "avg_model_prob": 0.7366687232548559,
+        "calibration_error": -0.13379790985772666,
+        "roi": -0.020534537201324587,
+        "is_miscalibrated": true
+      },
+      {
+        "category": "h2h_100pct",
+        "n_bets": 509,
+        "pct_of_bets": 11.288534043025061,
+        "empirical_win_rate": 0.7033398821218074,
+        "avg_model_prob": 0.9532466280671894,
+        "calibration_error": -0.24990674594538198,
+        "roi": 0.03651768604893678,
+        "is_miscalibrated": true
+      },
+      {
+        "category": "h2h_0pct",
+        "n_bets": 433,
+        "pct_of_bets": 9.603016189842537,
+        "empirical_win_rate": 0.6766743648960739,
+        "avg_model_prob": 0.952279406568715,
+        "calibration_error": -0.2756050416726411,
+        "roi": 0.07419619417579619,
+        "is_miscalibrated": true
+      }
+    ]
+  },
+  "loss_streak_analysis": {
+    "max_consecutive_losses": "10",
+    "expected_max_streak_random": 9.455768810521448,
+    "ratio_observed_vs_expected": 1.0575554669730276,
+    "streaks_gte_5_losses": 32,
+    "streak_behavior": "NORMAL"
+  },
+  "circuit_breaker_simulation": {
+    "config": {
+      "DRAWDOWN_CAUTION": 0.2,
+      "DRAWDOWN_HALT": 0.3,
+      "CONSECUTIVE_LOSS_CAUTION": 7,
+      "CONSECUTIVE_LOSS_HALT": 10
+    },
+    "results": {
+      "final_bankroll": 1472.7011668983998,
+      "max_drawdown": 0.5622091875798448,
+      "caution_count": 5,
+      "halt_count": 2,
+      "bets_skipped": 1831
+    },
+    "recommendation": "IMPLEMENT"
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "action": "Implement H2H sample size regularization",
+      "reason": "H2H=100% bets show 25.0pp overconfidence miscalibration"
+    },
+    {
+      "priority": "HIGH",
+      "action": "Circuit breaker would have triggered HALT state",
+      "reason": "Would have skipped 1831 bets during drawdown events"
+    }
+  ]
+}
