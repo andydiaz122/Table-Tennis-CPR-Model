@@ -1,0 +1,14 @@
+diff --git a/V8.0/backtest_final_v7.4_calibrated.py b/V8.0/backtest_final_v7.4_calibrated.py
+index c28f315..9259f8b 100644
+--- a/V8.0/backtest_final_v7.4_calibrated.py
++++ b/V8.0/backtest_final_v7.4_calibrated.py
+@@ -440,6 +440,9 @@ try:
+             log_entry = {
+                 'Match_ID': match['Match ID'],
+                 'Date': match['Date'].strftime('%Y-%m-%d'),
++                'Hour': match['Date'].hour,
++                'P1_Games_Count': len(p1_games),
++                'P2_Games_Count': len(p2_games),
+                 'Player_1': match['Player 1'],
+                 'Player_2': match['Player 2'],
+                 'Time_Since_Last_Advantage': time_since_last_advantage,
