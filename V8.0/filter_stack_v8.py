@@ -27,9 +27,9 @@ warnings.filterwarnings('ignore')
 # CONFIGURATION
 # ==============================================================================
 
-INPUT_FILE = "/Users/christiandiaz/Documents/Coding/table-tennis-cpr-model/V8.0/backtest_log_GOLDEN_4509bets_1.50pct_baseline.csv"
-OUTPUT_FILE = "/Users/christiandiaz/Documents/Coding/table-tennis-cpr-model/v8-feature-research/V8.0/backtest_log_filtered_v8.csv"
-REPORT_FILE = "/Users/christiandiaz/Documents/Coding/table-tennis-cpr-model/v8-feature-research/V8.0/filter_stack_v8_report.txt"
+INPUT_FILE = "backtest_log_final_filtered.csv"  # Relative path - reads from current directory
+OUTPUT_FILE = "backtest_log_filtered_v8.csv"  # Relative path
+REPORT_FILE = "filter_stack_v8_report.txt"  # Relative path
 
 INITIAL_BANKROLL = 1000
 

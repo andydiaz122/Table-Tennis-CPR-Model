@@ -5,6 +5,25 @@ import joblib
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+# --- Elo Rating Function (K=32 Fixed) ---
+# Note: Dynamic K (70/35/20) was tested and REJECTED - it hurt filter_stack ROI (4.33% → 1.87%)
+# K=32 matches feature_engineering for consistency. Elo has only 0.24% feature importance anyway.
+def update_elo(p1_elo, p2_elo, p1_won, k_factor=32):
+    """
+    Updates Elo ratings for both players after a match.
+    Uses fixed K=32 to match feature engineering (consistency).
+    """
+    expected_p1 = 1 / (1 + 10 ** ((p2_elo - p1_elo) / 400))
+    expected_p2 = 1 / (1 + 10 ** ((p1_elo - p2_elo) / 400))
+
+    score_p1 = 1 if p1_won else 0
+    score_p2 = 0 if p1_won else 1
+
+    new_p1_elo = p1_elo + k_factor * (score_p1 - expected_p1)
+    new_p2_elo = p2_elo + k_factor * (score_p2 - expected_p2)
+
+    return new_p1_elo, new_p2_elo
+
 # --- Helper functions ---
 def calculate_close_set_win_rate(player_id, rolling_games_df):
     if rolling_games_df.empty: return 0.5
@@ -293,6 +312,16 @@ try:
             log_entry = {'Match_ID': match['Match ID'],'Date': match['Date'].strftime('%Y-%m-%d'),'Player_1': match['Player 1'],'Player_2': match['Player 2'], 'Time_Since_Last_Advantage': time_since_last_advantage, 'Matches_Last_24H_Advantage': matches_last_24h_advantage, 'Is_First_Match_Advantage': is_first_match_advantage, 'H2H_P1_Win_Rate': h2h_p1_win_rate_log,'H2H_Dominance_Score': h2h_dominance_score, 'Win_Rate_Advantage': win_rate_advantage, 'Win_Rate_L5_Advantage': win_rate_l5_advantage,'PDR_Advantage': pdr_advantage, 'PDR_Slope_Advantage': pdr_slope_advantage, 'Daily_Fatigue_Advantage': daily_fatigue_advantage, 'Close_Set_Win_Rate_Advantage': close_set_win_rate_advantage}
             log_entry.update(bet_details)
             bet_log.append(log_entry)
+
+        # Update Elo ratings for BOTH players AFTER match outcome (for ALL matches, not just bets)
+        new_p1_elo, new_p2_elo = update_elo(
+            p1_pre_match_elo, p2_pre_match_elo,
+            actual_winner == 1
+        )
+        elo_ratings[p1_id] = new_p1_elo
+        elo_ratings[p2_id] = new_p2_elo
+        match_counts[p1_id] = p1_matches + 1
+        match_counts[p2_id] = p2_matches + 1
 
     # --- 4. Final Results Summary & Save Log ---
     print("\n--- Final Back-test Summary (Wide Filters, Symmetrical, Normalized Stake) ---")

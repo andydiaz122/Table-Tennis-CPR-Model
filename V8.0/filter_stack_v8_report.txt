@@ -1,22 +1,22 @@
 FILTER STACK V8.0 - WATERFALL ANALYSIS (OPTIMIZED)
 ================================================================================
-Timestamp: 2026-01-13 15:15:31
+Timestamp: 2026-01-14 02:34:57
 
-Input file: /Users/christiandiaz/Documents/Coding/table-tennis-cpr-model/V8.0/backtest_log_final_filtered.csv
+Input file: backtest_log_final_filtered.csv
 
 [WATERFALL ANALYSIS]
-  BASELINE (Raw Data).......................... Bets: 4,509  |  ROI: 1.50%  |  Sharpe: 2.02  |  MaxDD: 34.12%
+  BASELINE (Raw Data).......................... Bets: 4,841  |  ROI: 2.07%  |  Sharpe: 3.02  |  MaxDD: 33.05%
 
 STEP 2: DATA TRANSFORMATIONS
 ----------------------------------------
-  2a. H2H Perfect Cap: 376 bets capped to 0.7
-  2b. Dead Zone Cap: 1624 bets capped to 0.75
-  2c. Edge recalculated: 4509 bets affected
-  After Transformations........................ Bets: 4,509  |  ROI: 1.50%  |  Sharpe: 2.02  |  MaxDD: 34.12%
+  2a. H2H Perfect Cap: 379 bets capped to 0.7
+  2b. Dead Zone Cap: 1646 bets capped to 0.75
+  2c. Edge recalculated: 4841 bets affected
+  After Transformations........................ Bets: 4,841  |  ROI: 2.07%  |  Sharpe: 3.02  |  MaxDD: 33.05%
 
 STEP 3: BOOLEAN MASK FILTERS (OPTIMIZED)
 ----------------------------------------
-  After COMBINED FILTERS....................... Bets: 2,056  |  ROI: 4.33%  |  Sharpe: 3.63  |  MaxDD: 25.26%
+  After COMBINED FILTERS....................... Bets: 2,383  |  ROI: 2.74%  |  Sharpe: 2.70  |  MaxDD: 24.51%
 
 ================================================================================
 FINAL COMPARISON: BASELINE vs FILTERED
@@ -24,19 +24,19 @@ FINAL COMPARISON: BASELINE vs FILTERED
 
     Metric          |  BASELINE  |  FILTERED  |  DELTA     |  CHANGE
     ----------------+------------+------------+------------+---------
-    Bets            |  4,509      |  2,056      |  -2,453      |  -54.4%
-    ROI             |  1.50%     |  4.33%     |  +2.84%    |  +189.8%
-    Sharpe Ratio    |  2.02       |  3.63       |  +1.61      |  +80.1%
-    Max Drawdown    |  34.12%    |  25.26%    |  -8.86%   |  -26.0%
-    Final Bankroll  |  $1600.48   |  $1865.07   |  $+264.59    |  +16.5%
+    Bets            |  4,841      |  2,383      |  -2,458      |  -50.8%
+    ROI             |  2.07%     |  2.74%     |  +0.67%    |  +32.4%
+    Sharpe Ratio    |  3.02       |  2.70       |  -0.31      |  -10.3%
+    Max Drawdown    |  33.05%    |  24.51%    |  -8.55%   |  -25.9%
+    Final Bankroll  |  $2036.99   |  $1713.62   |  $-323.37    |  -15.9%
     
 
 [VALIDATION CHECKS]
   [PASS] Bets >= 1,000
-  [PASS] Sharpe maintained/improved
+  [WARN] Sharpe regressed
   [PASS] Max Drawdown within limits
   [PASS] ROI meets target
-  [INFO] Max loss streak: 8 (circuit breakers NOT applied)
+  [INFO] Max loss streak: 9 (circuit breakers NOT applied)
 
-Output file: /Users/christiandiaz/Documents/Coding/table-tennis-cpr-model/v8-feature-research/V8.0/backtest_log_filtered_v8.csv
-Total bets saved: 2,056
+Output file: backtest_log_filtered_v8.csv
+Total bets saved: 2,383
